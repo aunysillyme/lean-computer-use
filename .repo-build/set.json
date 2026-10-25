@@ -24,12 +24,12 @@
     {
       "name": "lean-browser-use",
       "url": "https://github.com/aunysillyme/lean-browser-use",
-      "line": "The same method for web pages."
+      "line": "Token-lean browser use for AI agents: runner subagent, bulk-read briefs, three guards, a compile-once page reader and a token meter, installed with one command"
     },
     {
       "name": "lean-computer-use",
       "url": "https://github.com/aunysillyme/lean-computer-use",
-      "line": "Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement."
+      "line": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "lean-computer-use",
-  "lead": "Keep native Mac app work in a small context, chain actions, and verify one filtered read.",
-  "description": "Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement.",
+  "lead": "Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.",
+  "description": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command",
   "install": "npx lean-computer-use",
   "uninstall": "npx lean-computer-use --uninstall",
   "homepage": "https://www.npmjs.com/package/lean-computer-use",
@@ -13,12 +13,15 @@
     "native-apps",
     "macos",
     "cua-driver",
+    "cua",
     "token-efficiency",
     "subagents",
     "accessibility",
     "cli",
     "npm",
-    "developer-tools"
+    "developer-tools",
+    "ai-agents",
+    "macos-automation"
   ],
   "keywords": [
     "agent-skills",
@@ -27,12 +30,17 @@
     "native-apps",
     "macos",
     "cua-driver",
+    "cua",
     "token-efficiency",
     "subagents",
     "accessibility",
     "cli",
     "npm",
-    "developer-tools"
+    "developer-tools",
+    "ai-agents",
+    "macos-automation",
+    "mac-automation",
+    "background-computer-use"
   ],
   "emails_allow": [],
   "registry": "npm",

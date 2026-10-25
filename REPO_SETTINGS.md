@@ -6,9 +6,9 @@ This is the expected configuration for the maintainer's dated read-back, not a r
 | Setting | Expected value | Read-back |
 |---|---|---|
 | Visibility | Private until owner approval of the public flip | UNVERIFIED |
-| About description | Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement. | UNVERIFIED |
+| About description | Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command | UNVERIFIED |
 | Website | https://www.npmjs.com/package/lean-computer-use | UNVERIFIED |
-| Topics | agent-skills, claude-code, computer-use, native-apps, macos, cua-driver, token-efficiency, subagents, accessibility, cli, npm, developer-tools | UNVERIFIED |
+| Topics | agent-skills, claude-code, computer-use, native-apps, macos, cua-driver, cua, token-efficiency, subagents, accessibility, cli, npm, developer-tools, ai-agents, macos-automation | UNVERIFIED |
 | Default branch | main | UNVERIFIED |
 | Required status | Repository checks | UNVERIFIED |
 | Branch protection | Review required; passing required check; no force pushes | UNVERIFIED |

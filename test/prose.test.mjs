@@ -18,4 +18,7 @@ test('front page has short examples and searchable common questions', () => {
   const faq = text.split('## Common questions')[1]?.split('\n## ')[0] || '';
   const count = (faq.match(/^### /gm) || []).length;
   assert.ok(count >= 4 && count <= 6);
+  assert.match(faq, /^### How do I use computer use on a Mac in the background\?$/m);
+  assert.match(faq, /^### What is cua-driver and how do I check its permissions\?$/m);
+  assert.match(faq, /^### How do I reduce tokens when an AI agent controls Mac apps\?$/m);
 });

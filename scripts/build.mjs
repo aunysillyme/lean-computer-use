@@ -7,17 +7,23 @@ import { checkSet } from './set-check.mjs';
 
 export function llmsSource(root) {
   const facts = JSON.parse(readFileSync(resolve(root, '.repo-build/facts.json'), 'utf8'));
-  const base = 'https://github.com/aunysillyme/lean-computer-use/blob/main/';
-  const link = (label, path, text) => `- [${label}](${base}${path}): ${text}`;
+  const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+  const base = `https://github.com/aunysillyme/lean-computer-use/blob/v${pkg.version}/`;
+  const link = (path, text) => {
+    const source = readFileSync(resolve(root, path), 'utf8');
+    const label = source.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1];
+    if (!label) throw Error(`Missing first heading: ${path}`);
+    return `- [${label}](${base}${path}): ${text}`;
+  };
   return ['# lean-computer-use', '', `> ${facts.lead}`, '', 'Install: `npx lean-computer-use`', '', '## Docs', '',
-    link('README', 'README.md', 'Start here.'), link('Documentation index', 'docs/README.md', 'Choose a guide.'),
-    link('Install', 'docs/install.md', 'Install and remove the package.'), link('Installer reference', 'docs/INSTALLER.md', 'Read options and file ownership.'),
-    link('Driver setup', 'docs/cua-driver-install.md', 'Prepare native app control.'), link('Method', 'docs/METHOD.md', 'Follow the process.'), link('Stack', 'docs/STACK.md', 'Read the stack card.'), '',
-    '## Reference', '', link('Skill', 'skills/lean-computer-use/SKILL.md', 'Activate the method.'),
-    ...['desk-run', 'same-app-chaining', 'background-only', 'filtered-reads', 'cleanup-with-proof', 'verify', 'failure-modes', 'cheap-helper-or-subagent'].map(name => link(name, `skills/lean-computer-use/methods/${name}.md`, 'Read this method.')),
-    link('Agent instructions', 'AGENTS.md', 'Use and contribute.'), link('Desk reference', 'desk/README.md', 'Run and verify desk tools.'), '',
+    link('README.md', 'Start here.'), link('docs/README.md', 'Choose a guide.'),
+    link('docs/install.md', 'Install and remove the package.'), link('docs/INSTALLER.md', 'Read options and file ownership.'),
+    link('docs/cua-driver-install.md', 'Prepare native app control.'), link('docs/METHOD.md', 'Follow the process.'), link('docs/STACK.md', 'Read the stack card.'), '',
+    '## Reference', '', link('skills/lean-computer-use/SKILL.md', 'Activate the method.'),
+    ...['desk-run', 'same-app-chaining', 'background-only', 'filtered-reads', 'cleanup-with-proof', 'verify', 'failure-modes', 'cheap-helper-or-subagent'].map(name => link(`skills/lean-computer-use/methods/${name}.md`, 'Read this method.')),
+    link('AGENTS.md', 'Use and contribute.'), link('desk/README.md', 'Run and verify desk tools.'), '',
     '<!-- set:start -->', '<!-- set:end -->', '', '## Optional', '',
-    link('Credits', 'CREDITS.md', 'See upstream sources.'), link('Provenance', 'docs/PROVENANCE.md', 'Trace borrowed techniques.'), link('Contribute', 'CONTRIBUTING.md', 'Improve the package.'),
+    link('CREDITS.md', 'See upstream sources.'), link('docs/PROVENANCE.md', 'Trace borrowed techniques.'), link('CONTRIBUTING.md', 'Improve the package.'),
     '- [npm package](https://www.npmjs.com/package/lean-computer-use): Package and command.', '',
   ].join('\n');
 }

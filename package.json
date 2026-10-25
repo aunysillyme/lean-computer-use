@@ -1,7 +1,7 @@
 {
   "name": "lean-computer-use",
   "version": "0.1.0",
-  "description": "Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement.",
+  "description": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command",
   "type": "module",
   "bin": { "lean-computer-use": "bin/lean-computer-use.mjs" },
   "engines": { "node": ">=22" },
@@ -11,7 +11,7 @@
   "repository": { "type": "git", "url": "git+https://github.com/aunysillyme/lean-computer-use.git" },
   "bugs": { "url": "https://github.com/aunysillyme/lean-computer-use/issues" },
   "funding": "https://github.com/sponsors/aunysillyme",
-  "keywords": ["agent-skills", "claude-code", "computer-use", "native-apps", "macos", "cua-driver", "token-efficiency", "subagents", "accessibility", "cli", "npm", "developer-tools"],
+  "keywords": ["agent-skills", "claude-code", "computer-use", "native-apps", "macos", "cua-driver", "cua", "token-efficiency", "subagents", "accessibility", "cli", "npm", "developer-tools", "ai-agents", "macos-automation", "mac-automation", "background-computer-use"],
   "files": ["bin/", "src/", "skills/", "agents/", "briefs/", "desk/desk", "desk/desk-read", "desk/desk-clean", "desk/_resolve.py", "desk/README.md", "desk/exit-codes.json", "hooks/*.py", "hooks/*.sh", "hooks/settings-snippet.json", "docs/*.md", "*.md", "LICENSE", "llms.txt"],
   "scripts": {
     "test": "node --test",

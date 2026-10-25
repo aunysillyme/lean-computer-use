@@ -2,10 +2,10 @@
 
 [![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Keep native Mac app work in a small context, chain actions, and verify one filtered read.**
+**Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.**
 
 The problem: every agent step re-reads its conversation, including the context accumulated before the app task.
-What you get: desk tools, a fresh runner, focused methods, native hooks and a transcript measurement command.
+What you get: computer use for Claude Code with desk tools, a fresh runner, focused methods, native hooks and a transcript measurement command.
 What you can do: give your AI a bounded Mac app task and check the saved result and cleanup.
 
 ```sh
@@ -81,8 +81,8 @@ Other hosts: manually copy `skills/lean-computer-use/` to your host's documented
 | [model-orchestrator](https://github.com/aunysillyme/model-orchestrator) | Model router for AI coding agents: routes routine work to cheaper models with routing rules, 8 subagents, hooks and a CLI runner |
 | [repo-build-skill](https://github.com/aunysillyme/repo-build-skill) | Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing. |
 | [website-build-skill](https://github.com/aunysillyme/website-build-skill) | A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team. |
-| [lean-browser-use](https://github.com/aunysillyme/lean-browser-use) | The same method for web pages. |
-| **lean-computer-use** | Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement. |
+| [lean-browser-use](https://github.com/aunysillyme/lean-browser-use) | Token-lean browser use for AI agents: runner subagent, bulk-read briefs, three guards, a compile-once page reader and a token meter, installed with one command |
+| **lean-computer-use** | Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command |
 <!-- set:end -->
 
 ## Install where you work
@@ -158,25 +158,30 @@ Regenerate them with `npm run proof` after running the checks.
 
 ## Common questions
 
-### How does desk-runner handle Mac apps?
+### How do I use computer use on a Mac in the background?
 
-Install with `npx lean-computer-use` and ask the AI to use `desk-runner`.
-The fresh runner handles every app task when no helper is available.
+Use `desk` for background keys, then chain predictable actions in one call with `desk <bundle> <tool> '<json>' && desk <bundle> <tool> '<json>' && desk-read <bundle> '<filter>'`.
+Test one action first, then verify the saved read and run `desk-clean <bundle> --app-name <Name>`; add `--launched-by-run` only when this run opened the app.
 
-### How do I check cua-driver permissions?
+### What is cua-driver and how do I check its permissions?
 
-Run `npx lean-computer-use doctor` for the local checks and fixes.
-Follow the [driver guide](docs/cua-driver-install.md) to verify the app before granting permissions.
+cua-driver is the upstream native app driver from [trycua/cua](https://github.com/trycua/cua); run `npx lean-computer-use doctor` to check its permissions and get fixes.
+Follow [docs/cua-driver-install.md](docs/cua-driver-install.md) to verify the app before granting permissions.
+
+### How do I reduce tokens when an AI agent controls Mac apps?
+
+Use a fresh `desk-runner`, one chained `desk` call and one filtered `desk-read` to keep app work in a small context.
+Run `npx lean-computer-use measure` on your own transcripts to check the result.
 
 ### How do I measure main-session and subagent tokens?
 
 Run `npx lean-computer-use measure --json`.
 The report separates both groups and deduplicates assistant message ids.
 
-### How do I install optional native hooks?
+### How do I install the optional retry hook for native app errors?
 
 Run `npx lean-computer-use install --with-hooks` and review the settings change.
-The installer backs up the settings file and preserves unrelated registrations.
+The retry hook blocks the third identical error attempt; the installer backs up the settings file and preserves unrelated registrations.
 
 ### How do I keep my edited skill when uninstalling?
 

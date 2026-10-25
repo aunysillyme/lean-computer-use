@@ -1,32 +1,32 @@
 # lean-computer-use
 
-> Keep native Mac app work in a small context, chain actions, and verify one filtered read.
+> Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.
 
 Install: `npx lean-computer-use`
 
 ## Docs
 
-- [README](https://github.com/aunysillyme/lean-computer-use/blob/main/README.md): Start here.
-- [Documentation index](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/README.md): Choose a guide.
-- [Install](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/install.md): Install and remove the package.
-- [Installer reference](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/INSTALLER.md): Read options and file ownership.
-- [Driver setup](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/cua-driver-install.md): Prepare native app control.
-- [Method](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/METHOD.md): Follow the process.
-- [Stack](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/STACK.md): Read the stack card.
+- [lean-computer-use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/README.md): Start here.
+- [Documentation](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/README.md): Choose a guide.
+- [Install](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/install.md): Install and remove the package.
+- [Installer contract](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/INSTALLER.md): Read options and file ownership.
+- [Install cua-driver carefully](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/cua-driver-install.md): Prepare native app control.
+- [Native app method](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/METHOD.md): Follow the process.
+- [Stack card](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/STACK.md): Read the stack card.
 
 ## Reference
 
-- [Skill](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/SKILL.md): Activate the method.
-- [desk-run](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/desk-run.md): Read this method.
-- [same-app-chaining](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/same-app-chaining.md): Read this method.
-- [background-only](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/background-only.md): Read this method.
-- [filtered-reads](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/filtered-reads.md): Read this method.
-- [cleanup-with-proof](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/cleanup-with-proof.md): Read this method.
-- [verify](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/verify.md): Read this method.
-- [failure-modes](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/failure-modes.md): Read this method.
-- [cheap-helper-or-subagent](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/cheap-helper-or-subagent.md): Read this method.
-- [Agent instructions](https://github.com/aunysillyme/lean-computer-use/blob/main/AGENTS.md): Use and contribute.
-- [Desk reference](https://github.com/aunysillyme/lean-computer-use/blob/main/desk/README.md): Run and verify desk tools.
+- [Lean computer use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/SKILL.md): Activate the method.
+- [Run one named app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/desk-run.md): Read this method.
+- [Chain actions in the same app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/same-app-chaining.md): Read this method.
+- [Keep app work in the background](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/background-only.md): Read this method.
+- [Read fields in one packet](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/filtered-reads.md): Read this method.
+- [Clean up with proof](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/cleanup-with-proof.md): Read this method.
+- [Verify the saved evidence](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/verify.md): Read this method.
+- [Resolve failures within the brief](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/failure-modes.md): Read this method.
+- [Choose the app worker](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/skills/lean-computer-use/methods/cheap-helper-or-subagent.md): Read this method.
+- [Agent instructions](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/AGENTS.md): Use and contribute.
+- [Desk commands](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/desk/README.md): Run and verify desk tools.
 
 <!-- set:start -->
 ## Part of a set
@@ -35,12 +35,12 @@ Install: `npx lean-computer-use`
 - [model-orchestrator](https://github.com/aunysillyme/model-orchestrator): Model router for AI coding agents: routes routine work to cheaper models with routing rules, 8 subagents, hooks and a CLI runner
 - [repo-build-skill](https://github.com/aunysillyme/repo-build-skill): Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing.
 - [website-build-skill](https://github.com/aunysillyme/website-build-skill): A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team.
-- [lean-browser-use](https://github.com/aunysillyme/lean-browser-use): The same method for web pages.
+- [lean-browser-use](https://github.com/aunysillyme/lean-browser-use): Token-lean browser use for AI agents: runner subagent, bulk-read briefs, three guards, a compile-once page reader and a token meter, installed with one command
 <!-- set:end -->
 
 ## Optional
 
-- [Credits](https://github.com/aunysillyme/lean-computer-use/blob/main/CREDITS.md): See upstream sources.
-- [Provenance](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/PROVENANCE.md): Trace borrowed techniques.
-- [Contribute](https://github.com/aunysillyme/lean-computer-use/blob/main/CONTRIBUTING.md): Improve the package.
+- [Credits](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/CREDITS.md): See upstream sources.
+- [Provenance](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/PROVENANCE.md): Trace borrowed techniques.
+- [Contributing](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/CONTRIBUTING.md): Improve the package.
 - [npm package](https://www.npmjs.com/package/lean-computer-use): Package and command.
