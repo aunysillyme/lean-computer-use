@@ -61,7 +61,7 @@ export async function main(args = []) {
   const previousPath = join(ROOT, 'proof/results.json');
   const previous = existsSync(previousPath) ? JSON.parse(readFileSync(previousPath, 'utf8')) : [];
   const values = { dependencies: Object.keys(pkg.dependencies || {}).length };
-  saveRows(makeRows(pkg.version, new Date(), values));
+  // Rows are written only after the suite has run: the suite validates the saved rows, so placeholders must never reach disk first.
   if (args.includes('--deterministic')) {
     values.node = previous.find(row => row.id === 'node-tests')?.value ?? 'unverified';
     values.python = previous.find(row => row.id === 'python-tests')?.value ?? 'unverified';
