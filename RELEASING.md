@@ -24,7 +24,7 @@ Read back the settings into [REPO_SETTINGS.md](REPO_SETTINGS.md).
 Add this package and the browser sibling to the canonical set source in the owner's `.github` repository.
 
 The workflow uses the action commit pins copied from the proven template.
-The `actions/setup-python@v5` tag is the remaining pinning step: replace it with a verified full commit SHA before enabling release automation.
+Every workflow action is pinned to a full commit SHA, including `actions/setup-python` at v7.1.0.
 The pinned workflow linter versions and digest were supplied by the template; their current upstream status is UNVERIFIED in this build.
 
 ## Publish and verify
