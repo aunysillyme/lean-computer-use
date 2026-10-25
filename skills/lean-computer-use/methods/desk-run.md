@@ -1,7 +1,7 @@
 # Run one named app
 
 The brief is the packet: put the app, actions, evidence and stopping rules in it before starting.
-The main session does the framing and verification; the cheap helper or runner does the screen work.
+The main session frames the task, verifies evidence and reports; the cheap helper or runner performs the screen actions.
 
 1. Read the whole brief. Confirm the bundle id, permitted app, action approvals, read filter and done check.
 2. Snapshot `osascript -e 'application "<Name>" is running'`. Record the answer so cleanup can preserve the user's session.

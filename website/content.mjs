@@ -3,12 +3,12 @@ export const content = {
   eyebrow: 'COMPUTER USE FOR AI AGENTS ON MAC',
   headline: 'Let your AI use Mac apps.',
   headlineAccent: 'In the background.',
-  heroLede: 'Token-lean computer use for Claude Code: give your AI a bounded Mac task, chain background actions in native apps, and check the saved result and cleanup.',
+  heroLede: 'Token-lean computer use for AI agents such as Claude Code: give your AI a bounded Mac task, chain background actions in native apps, and check the saved result and cleanup.',
   chips: ['Controls native Mac apps', 'Runs in the background', 'Saved reads', 'Cleanup proof', 'MIT licensed'],
   heroActions: [{ label: 'Get started', href: '/#quickstart' }, { label: 'Explore the source', href: 'https://github.com/aunysillyme/lean-computer-use' }],
   columns: [
     { title: 'Give the agent one clear app task.', text: 'Define the target Mac app, the work to do and the result to check.', label: 'FRAME', href: '/docs/how-it-works/', link: 'How computer use works here' },
-    { title: 'Let a fresh runner use the app.', text: 'The runner chains related desk actions and saves an app read for inspection.', label: 'ACT', href: '/docs/commands/', link: 'Meet the desk commands' },
+    { title: 'Let a fresh runner use the app.', text: 'The runner is a fresh subagent that performs the app actions and saves an app read for inspection.', label: 'ACT', href: '/docs/commands/', link: 'Meet the desk commands' },
     { title: 'Check the saved read and the cleanup.', text: 'Inspect the evidence, confirm the result and check the cleanup proof.', label: 'VERIFY', href: '/docs/proof/', link: 'See the evidence' },
   ],
   columnsTitle: 'A shared way to get work done.',
@@ -86,7 +86,7 @@ export const content = {
     { title: 'cua-driver', text: 'Install the upstream driver and review its permission guidance.' },
   ],
   proof: {
-    intro: 'Dated package measurements and checks you can inspect in the repository. Read the guarantees to see what the guards do and do not do.',
+    intro: 'Dated package measurements and checks you can inspect in the repository. Read the guarantees for workflow support, runner boundaries and failure behavior.',
     note: 'The token median is a test fixture. Measure your own transcripts to check your tasks.',
     measurement: 'Measurement', value: 'Value', measured: 'Measured', expires: 'Expires', fixture: 'test fixture',
     link: 'Measured results', guarantees: 'Guarantees', caption: 'Package measurements and expiry dates',

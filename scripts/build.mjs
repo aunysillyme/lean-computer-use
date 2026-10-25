@@ -24,7 +24,7 @@ export function llmsSource(root) {
     if (!label) throw Error(`Missing first heading: ${path}`);
     return `- [${label}](${base}${path}): ${text}`;
   };
-  return ['# lean-computer-use', '', `> ${facts.lead}`, '', 'Install: `npx lean-computer-use`', '', '## Docs', '',
+  return ['# lean-computer-use', '', `> ${facts.lead}`, '', 'Install: `npx lean-computer-use`', '', 'Computer use for AI agents, with Claude Code as the supported host.', '', '## Docs', '',
     link('README.md', 'Start here.'), link('docs/README.md', 'Choose a guide.'),
     link('docs/install.md', 'Install and remove the package.'), link('docs/INSTALLER.md', 'Read options and file ownership.'),
     link('docs/cua-driver-install.md', 'Prepare native app control.'), link('docs/METHOD.md', 'Follow the process.'), link('docs/STACK.md', 'Read the stack card.'), '',

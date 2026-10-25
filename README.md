@@ -4,17 +4,21 @@
 
 **Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.**
 
-The problem: every agent step re-reads its conversation, including the context accumulated before the app task.
-What you get: computer use for Claude Code with desk tools, a fresh runner, focused methods, native hooks and a transcript measurement command.
+A chain is several desk actions sent in one command; a filtered read prints only matching lines and saves the full read to a file.
+Every agent step re-reads its conversation, including the context accumulated before the app task.
+What you get: computer use for AI agents such as Claude Code with desk tools, a runner (a fresh subagent that performs the app actions), focused methods, native hooks and a transcript measurement command.
 What you can do: give your AI a bounded Mac app task and check the saved result and cleanup.
 
 ```sh
 npx lean-computer-use
 ```
 
+After you install, start a fresh Claude Code session, ask it to use the lean-computer-use skill, then run `npx lean-computer-use doctor`.
+Who it is for: people who run native Mac app tasks with an AI agent such as Claude Code.
+
 Remove with `npx lean-computer-use --uninstall`; preview either operation with `--dry-run` (or `--dry`).
 
-Native app control runs on macOS with Python 3 and [cua-driver](https://github.com/trycua/cua).
+Native app control runs on macOS with Python 3 and [cua-driver](https://github.com/trycua/cua), the background app driver from trycua/cua.
 The installer, doctor and transcript measurement use Node >=22.
 Follow the [driver installation precautions](docs/cua-driver-install.md) before granting app permissions.
 
@@ -27,8 +31,8 @@ Follow the [driver installation precautions](docs/cua-driver-install.md) before 
 | Read | One filtered read keeps the full evidence in a file. |
 | Verify | Main session checks the saved value and cleanup proof. |
 
-The main session never drives the screen.
-If you have no cheap helper, the runner handles every native app task.
+The main session frames the task and verifies evidence; the runner performs the screen actions.
+Use the runner for every native app task when a cheap helper is unavailable.
 The method keeps predictable actions together and preserves the evidence needed to check the result.
 
 ## What it sets up
@@ -68,7 +72,7 @@ First prompt:
 Example run: the runner snapshots whether Calculator is running, tests a background key action, chains the remaining input, and reads the display.
 The main session opens the preserved read to check the requested value.
 The runner calls `desk-clean` and checks whether Calculator is running again.
-Use the [brief template](briefs/desk-brief.md) to specify the bundle id, approved actions, evidence handoff and stopping bound.
+Use the [brief template](briefs/desk-brief.md) to specify the bundle ID (an app's identifier, for example com.apple.calculator), approved actions, evidence handoff and stopping bound.
 
 Other hosts: manually copy `skills/lean-computer-use/` to your host's documented skill directory and connect its app runner to the desk tools.
 
@@ -81,7 +85,7 @@ Other hosts: manually copy `skills/lean-computer-use/` to your host's documented
 | [model-orchestrator](https://github.com/aunysillyme/model-orchestrator) | Model router for AI coding agents: routes routine work to cheaper models with routing rules, 8 subagents, hooks and a CLI runner |
 | [repo-build-skill](https://github.com/aunysillyme/repo-build-skill) | Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing. |
 | [website-build-skill](https://github.com/aunysillyme/website-build-skill) | A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team. |
-| [lean-browser-use](https://github.com/aunysillyme/lean-browser-use) | Cut browser use token cost about 3x per step for AI agents: fresh runner subagent, bulk reads, three guards and a token meter. One npx command |
+| [lean-browser-use](https://github.com/aunysillyme/lean-browser-use) | Cut browser use cost by up to 25% for AI agents: fresh runner subagent, bulk reads, three guards and a token meter. One npx command |
 | **lean-computer-use** | Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command |
 <!-- set:end -->
 
@@ -105,8 +109,8 @@ npx lean-computer-use install --with-hooks
 ```
 
 This merges marked retry and batching entries into the host's settings while preserving other settings.
-Without the flag, installation prints a snippet path and manual merge instructions.
-The hooks fail open on malformed input or internal errors; the runner still follows its brief's boundaries.
+The default installation prints a snippet path and manual merge instructions.
+The retry guard and batch hint support the workflow; the runner enforces the brief's boundaries. Malformed input or an internal error lets the call through.
 
 ## Check your environment
 
@@ -117,7 +121,7 @@ npx lean-computer-use doctor --json
 
 Each check includes a short fix when action is needed.
 A stopped daemon is a warning because `desk` starts it on demand.
-Package checks run on every platform; native driver checks are skipped with a macOS-only warning on other systems.
+Package checks run on every platform; macOS adds the native driver checks.
 
 ## Measure your own transcripts
 
@@ -127,7 +131,7 @@ npx lean-computer-use measure --projects-dir <transcripts-dir> --since YYYY-MM-D
 ```
 
 The command scans local Claude Code transcript files, counts each native assistant message id once, and keeps its largest input total.
-It separates main-session and subagent steps and reports median, p90, mean, total and re-read share.
+It separates main-session and subagent steps and reports median, p90 (the value 90 percent of steps stay under), mean, total and re-read share.
 Use `--tool-pattern <regex>` for a different native MCP tool prefix.
 
 Fixture data from the bundled synthetic transcripts, showing the output shape:
@@ -165,8 +169,8 @@ Test one action first, then verify the saved read and run `desk-clean <bundle> -
 
 ### What is cua-driver and how do I check its permissions?
 
-cua-driver is the upstream native app driver from [trycua/cua](https://github.com/trycua/cua); run `npx lean-computer-use doctor` to check its permissions and get fixes.
-Follow [docs/cua-driver-install.md](docs/cua-driver-install.md) to verify the app before granting permissions.
+Run `npx lean-computer-use doctor` to check cua-driver permissions and get fixes.
+Review [the upstream source](https://github.com/trycua/cua) and verify the app with [docs/cua-driver-install.md](docs/cua-driver-install.md) before granting permissions.
 
 ### How do I reduce tokens when an AI agent controls Mac apps?
 
@@ -195,7 +199,8 @@ npx lean-computer-use uninstall
 ```
 
 The `npx lean-computer-use --uninstall` alias does the same operation.
-Removal checks the manifest and current file hashes, keeps user edits and removes only marked hook registrations.
+Removal budget: uninstall removes every file the installer wrote that still matches its recorded hash; a file you edited stays in place and is listed for review.
+Removal checks the manifest and current file hashes and removes only marked hook registrations.
 Use `--dir` and `--share` with the same roots when you installed to custom locations.
 See [manifest recovery and manual steps](docs/INSTALLER.md#safe-removal) if the manifest is missing.
 

@@ -43,8 +43,7 @@ If the snippet was pasted manually, inspect the printed manual steps and remove 
 ## Safe removal
 
 Uninstall reads the manifest and rechecks each target before unlinking it.
-It removes an owned file only when its current hash matches the installed hash.
-A user-edited file remains and is reported.
+Removal budget: uninstall removes every file the installer wrote that still matches its recorded hash; a file you edited stays in place and is listed for review.
 Traversal, absolute recorded paths and symlink targets are refused.
 It removes a directory only when this install created it and it is empty.
 The manifest is removed last.
