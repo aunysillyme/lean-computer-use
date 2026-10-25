@@ -22,6 +22,10 @@ const decode = text => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/g
 });
 const text = value => decode(visibleText(value));
 const same = (a, b) => isDeepStrictEqual(a, b);
+// Latin-1 preserves every byte outside the footer's source commit fields.
+const withoutSourceCommit = bytes => bytes.toString('latin1').replace(
+  /(<footer class="bottom">[^]*?<span>Source <a href="https:\/\/github\.com\/aunysillyme\/lean-computer-use\/commit\/)[a-fA-F\d]{40}(">)[a-fA-F\d]{7}(<\/a><\/span><\/footer>)/g,
+  '$1SOURCE_COMMIT$2SOURCE_COMMIT$3');
 const own = (object, key) => Object.hasOwn(object, key);
 const projectUrls = new Set(['https://github.com/aunysillyme/lean-computer-use', 'https://www.npmjs.com/package/lean-computer-use']);
 const safeAnchor = url => {
@@ -251,7 +255,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
       const fresh = nodes.find(node => node.attrs.id === 'releases');
       check(fresh && text(fresh.inner).includes('Fresh from the repo') && (verified || /not released yet/i.test(text(fresh.inner))), file, 'Fresh from the repo must say not released yet');
       check(!/your agent keeps working/i.test(text(hero)), file, 'forbidden hero headline');
-      if (!live) check(bytes.get(file).equals(readFileSync(join(root, 'website/mock/index.html'))), file, 'default landing differs from saved mock');
+      if (!live) check(withoutSourceCommit(bytes.get(file)) === withoutSourceCommit(readFileSync(join(root, 'website/mock/index.html'))), file, 'default landing differs from saved mock');
     } else if (file !== '404.html') {
       const crumb = tags('nav').find(node => node.attrs['aria-label'] === 'Breadcrumb');
       const visible = crumb ? parseHtml(crumb.inner).filter(node => node.name === 'a' || node.name === 'span' && node.attrs['aria-hidden'] !== 'true').map(node => text(node.inner)) : [];

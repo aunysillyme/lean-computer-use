@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, cpSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, cpSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,8 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const read = (dir, file) => readFileSync(join(dir, file), 'utf8');
 const doc = 'docs/overview/index.html';
 const now = '2026-10-25T19:00:00.000Z';
+// Placeholder commit used to generate the saved mock, independent of repository history.
+const testCommit = '0000000000000000000000000000000000000000';
 let work;
 const sources = {};
 function write(dir, file, value) {
@@ -43,12 +45,53 @@ before(() => {
   work = mkdtempSync(join(tmpdir(), 'website-check-'));
   for (const live of [false, true]) {
     const dir = join(work, live ? 'live' : 'default');
-    buildSite({ outDir: dir, live });
+    buildSite({ outDir: dir, live, commit: testCommit });
     sources[live ? 'live' : 'default'] = dir;
     assert.deepEqual(run(dir, { live }), []);
   }
 });
 after(() => { if (work) rmSync(work, { recursive: true, force: true }); });
+
+for (const [name, commit] of [['A', '1111111111111111111111111111111111111111'],
+  ['B', '2222222222222222222222222222222222222222'],
+  ['third', '3333333333333333333333333333333333333333']]) {
+  test(`golden rule accepts commit ${name} with the saved mock unchanged`, t => {
+    const mock = readFileSync(join(root, 'website/mock/index.html'));
+    const dir = fixture(t);
+    buildSite({ outDir: dir, commit });
+    assert.ok(read(dir, 'index.html').includes(`/commit/${commit}">${commit.slice(0, 7)}</a>`));
+    assert.deepEqual(run(dir), []);
+    assert.deepEqual(readFileSync(join(root, 'website/mock/index.html')), mock);
+  });
+}
+
+test('RED golden rule rejects one changed word; restoring the output passes', t => {
+  const dir = fixture(t);
+  const original = read(dir, 'index.html');
+  edit(dir, 'index.html', html => html.replace('MIT licensed.', 'MIT changed.'));
+  const findings = run(dir);
+  assert.deepEqual(findings, ['index.html: default landing differs from saved mock']);
+  t.diagnostic(findings[0]);
+  write(dir, 'index.html', original);
+  assert.deepEqual(run(dir), []);
+});
+
+for (const field of ['short sha', 'commit URL']) {
+  test(`golden rule ignores a change only in the ${field}`, t => {
+    const dir = fixture(t);
+    edit(dir, 'index.html', html => field === 'short sha'
+      ? html.replace(`>${testCommit.slice(0, 7)}</a>`, '>abcdef0</a>')
+      : html.replace(`/commit/${testCommit}`, '/commit/abcdef0123456789abcdef0123456789abcdef01'));
+    assert.deepEqual(run(dir), []);
+  });
+}
+
+test('website test sources contain no revision lookup tokens', () => {
+  const forbidden = new RegExp(['rev' + '-parse', 'HE' + 'AD'].join('|'));
+  const tests = readdirSync(join(root, 'test')).filter(file => /^website-.*\.test\.mjs$/.test(file));
+  assert.ok(tests.length >= 3);
+  for (const file of tests) assert.doesNotMatch(read(root, `test/${file}`), forbidden, file);
+});
 
 function red(name, mutate, diagnostic, { live = false, options = {} } = {}) {
   test(`RED ${name}; restoring the output passes`, t => {

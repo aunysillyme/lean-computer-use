@@ -11,7 +11,8 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const routes = ['/', '/docs/overview/', '/docs/how-it-works/', '/docs/guides/', '/docs/commands/',
   '/docs/proof/', '/docs/changelog/', '/docs/install/', '/docs/guarantees/'];
-const commit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+// Placeholder commit used to generate the saved mock, independent of repository history.
+const testCommit = '0000000000000000000000000000000000000000';
 const read = (dir, file) => readFileSync(join(dir, file), 'utf8');
 const text = html => html.replace(/<(script|style)\b[^]*?<\/\1>/gi, '').replace(/<[^>]*>/g, ' ')
   .replace(/&(?:amp|lt|gt|quot|#39);/g, value => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[value])
@@ -50,9 +51,9 @@ function fixture(t) {
 
 function build(dir, { live = false, out = 'output', buildTime } = {}) {
   const code = `import { buildSite } from './website/build.mjs';\n` +
-    `await buildSite(${JSON.stringify({ root: dir, outDir: join(dir, out), live, commit, ...(buildTime ? { buildTime } : {}) })});`;
+    `await buildSite(${JSON.stringify({ root: dir, outDir: join(dir, out), live, commit: testCommit, ...(buildTime ? { buildTime } : {}) })});`;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
-    cwd: dir, encoding: 'utf8', env: { ...process.env, VERCEL_GIT_COMMIT_SHA: commit },
+    cwd: dir, encoding: 'utf8',
   });
   return { ...result, dir: join(dir, out) };
 }
@@ -141,7 +142,9 @@ test('RED build exits 1 for package and About description drift, then accepts pa
   const pkg = JSON.parse(original);
   pkg.description += '!';
   write(dir, 'package.json', JSON.stringify(pkg));
-  const failed = spawnSync(process.execPath, ['website/build.mjs'], { cwd: dir, encoding: 'utf8' });
+  const failed = spawnSync(process.execPath, ['website/build.mjs'], {
+    cwd: dir, encoding: 'utf8', env: { ...process.env, VERCEL_GIT_COMMIT_SHA: testCommit },
+  });
   assert.equal(failed.status, 1);
   assert.match(failed.stderr, /Description parity|description.*differ/i);
   assert.ok(!existsSync(join(dir, 'website/dist/index.html')));
@@ -247,7 +250,7 @@ test('RED deterministic builds differ only in build time and default landing equ
   assert.throws(() => assert.deepEqual(defect, expected));
   assert.deepEqual(snapshot(second), expected);
   const info = JSON.parse(read(first, 'build-info.json'));
-  assert.equal(info.commit, commit);
+  assert.equal(info.commit, testCommit);
   assert.equal(info.buildTime, '2026-10-25T12:00:00.000Z');
   assert.equal(info.packageVersion, JSON.parse(read(dir, 'package.json')).version);
   assert.equal(info.mode, 'default');
