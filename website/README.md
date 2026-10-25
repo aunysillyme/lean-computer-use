@@ -11,15 +11,15 @@ It makes no network calls. The site has no analytics.
 ## Trigger
 
 Run the builder after changing its content, sources, templates or assets.
-A deploy is Git-triggered. `--live` is the only difference between a preview and the public site.
-Deployment setup and publication are separate owner steps.
+A deploy is Git-triggered: every push to `main` rebuilds the site. `--live` is the only difference between a noindex preview build and the public discovery build.
+The Vercel environment variable `SITE_LIVE=1` selects the live build; without it the site stays noindex with a `Disallow` robots.txt and no sitemap, `llms.txt` or `sameAs` links.
+Set `SITE_LIVE=1` once the repository is public and the package is published, so the linked GitHub and npm pages exist.
 
 ## Invocation chain
 
 `node website/build.mjs [--live]` reads and checks facts, validates the page map,
 renders and checks every page in memory, then replaces `website/dist/`.
-`vercel.json` runs `npm --prefix website ci`, the live builder and `website/check.mjs --live`.
-The checker is a later step and is required before that deployment command can pass.
+`vercel.json` runs `npm --prefix website ci`, then the builder and `website/check.mjs`, with `--live` on both when `SITE_LIVE=1`. A failed check leaves the previous deployment in place.
 
 ## Dependencies
 
