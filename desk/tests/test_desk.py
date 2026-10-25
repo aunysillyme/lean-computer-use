@@ -287,6 +287,7 @@ def test_desk_read_filters_compact_lines_and_saves_full_json(desktop):
     assert result.returncode == 0, result.stderr
     header, *lines = result.stdout.splitlines()
     assert lines == ['AXStaticText value="42"', 'axstatictext value="second"']
+    assert "shown=2/2" in header
     assert "private button" not in result.stdout
     saved = Path(json.loads(re.search(r"file=(.*)$", header).group(1)))
     assert saved.parent == desktop.state
@@ -295,6 +296,30 @@ def test_desk_read_filters_compact_lines_and_saves_full_json(desktop):
     assert args == {"include_screenshot": False, "query": "AXStaticText",
                     "pid": os.getpid(), "window_id": 11}
     assert stat.S_IMODE(desktop.state.stat().st_mode) == 0o700
+
+
+def test_desk_read_treats_a_pipe_in_the_filter_as_literal_text(desktop):
+    driver_result = {"tree_markdown": 'AXStaticText value="42"\nAXButton value="Continue"'}
+    desktop.set_responses("get_window_state", driver_result)
+    result = desktop.run("desk-read", "AXStaticText|AXButton")
+    assert result.returncode == 0, result.stderr
+    header, *lines = result.stdout.splitlines()
+    assert lines == []
+    assert "shown=0/0" in header
+    saved = Path(json.loads(re.search(r"file=(.*)$", header).group(1)))
+    assert json.loads(saved.read_text()) == driver_result
+    assert desktop.calls("get_window_state")[0]["args"]["query"] == "AXStaticText|AXButton"
+
+
+def test_desk_read_filter_matches_case_insensitively(desktop):
+    driver_result = {"tree_markdown": 'AXStaticText value="42"\naxstatictext value="second"\nAXButton'}
+    desktop.set_responses("get_window_state", driver_result)
+    result = desktop.run("desk-read", "aXsTaTiCtExT")
+    assert result.returncode == 0, result.stderr
+    header, *lines = result.stdout.splitlines()
+    assert lines == ['AXStaticText value="42"', 'axstatictext value="second"']
+    assert "shown=2/2" in header
+    assert desktop.calls("get_window_state")[0]["args"]["query"] == "aXsTaTiCtExT"
 
 
 def test_resolve_chooses_main_non_minimized_window(desktop):

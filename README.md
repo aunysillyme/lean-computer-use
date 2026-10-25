@@ -5,6 +5,7 @@
 **Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.**
 
 A chain is several desk actions sent in one command; a filtered read prints only matching lines and saves the full read to a file.
+Each filter is one case-insensitive substring (`AXStaticText` by default); a pipe is literal. Choose a substring shared by the wanted lines, or use two reads when two fields share none. `--max` bounds printed matches; the printed file always holds the full read for any other line.
 Every agent step re-reads its conversation, including the context accumulated before the app task.
 What you get: computer use for AI agents such as Claude Code with desk tools, a runner (a fresh subagent that performs the app actions), focused methods, native hooks and a transcript measurement command.
 What you can do: give your AI a bounded Mac app task and check the saved result and cleanup.
@@ -41,7 +42,7 @@ The method keeps predictable actions together and preserves the evidence needed 
 |---|---|
 | `lean-computer-use` skill | Gives the AI the workflow and a focused method for each decision. |
 | `desk-runner` agent | Runs one app task in a fresh context with a short report. |
-| `desk-brief.md` | Captures scope, approvals, read-back and cleanup before app work. |
+| `desk-brief.md` | Installed with the skill at `skills/lean-computer-use/desk-brief.md`; captures scope, approvals, read-back and cleanup. |
 | `desk` and `_resolve.py` | Resolve the named app and run background native actions. |
 | `desk-read` | Prints matching fields and retains a full read for verification. |
 | `desk-clean` | Cleans owned state and gently closes an app launched by the run. |
@@ -75,6 +76,7 @@ The runner calls `desk-clean` and checks whether Calculator is running again.
 Use the [brief template](briefs/desk-brief.md) to specify the bundle ID (an app's identifier, for example com.apple.calculator), approved actions, evidence handoff and stopping bound.
 
 Other hosts: manually copy `skills/lean-computer-use/` to your host's documented skill directory and connect its app runner to the desk tools.
+Copy `briefs/desk-brief.md` into that skill directory as `desk-brief.md`.
 
 <!-- set:start -->
 ## Part of a set
@@ -175,6 +177,7 @@ Review [the upstream source](https://github.com/trycua/cua) and verify the app w
 ### How do I reduce tokens when an AI agent controls Mac apps?
 
 Use a fresh `desk-runner`, one chained `desk` call and one filtered `desk-read` to keep app work in a small context.
+Choose one case-insensitive substring shared by the wanted lines; use two reads when two fields share none. Open each saved full read to inspect any other line.
 Run `npx lean-computer-use measure` on your own transcripts to check the result.
 
 ### How do I measure main-session and subagent tokens?

@@ -22,6 +22,7 @@ Recorded paths inside each root must remain relative, contained and free of syml
 ## Install ownership
 
 The installer writes the skill under `skills/lean-computer-use`, the runner under `agents/desk-runner.md`, and desk tools and hook files under the share root.
+It copies packaged `briefs/desk-brief.md` to `<claude dir>/skills/lean-computer-use/desk-brief.md` as an owned skill file, with the same hash, backup and removal rules.
 It replaces `__DESK_DIR__` in the runner with the installed desk directory.
 Desk scripts are executable.
 It records paths, file hashes and created directories in `<share>/install-manifest.json`.

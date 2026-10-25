@@ -12,13 +12,13 @@ Set `DESK=__DESK_DIR__`; the installer replaces this token with the quoted insta
 
 ## Plan and run
 
-1. Packet first: put all predictable actions in one chain and all requested fields in one read. Use a lone action only when its result decides what follows.
+1. Packet first: put all predictable actions in one chain and name every read-back field. Group fields sharing one substring in a read; use two reads when two fields share none. Use a lone action only when its result decides what follows.
 2. Require the app's bundle id, display name, approved actions, done check, read filter, evidence handoff and exit bound. Report a missing action-changing requirement before acting.
 3. Snapshot `osascript -e 'application "<Name>" is running'` and record whether the app was already open.
 4. Use `"$DESK/desk" <bundle> <tool> '<json>'`. The wrapper fills in process and window ids; leave them out of JSON.
 5. Choose background keys or typing before an element click. Use observed element tokens only. Never foreground the app or use a foreground delivery mode.
 6. Test one action and verify its route, then chain the remainder in one Bash call with `&&`.
-7. Finish with `"$DESK/desk-read" <bundle> '<filter>'`. Done means the saved read meets the brief's check. A tool's `effect: unverifiable` label is acceptable when the read-back confirms the value.
+7. Finish with `"$DESK/desk-read" <bundle> '<filter>'`: one case-insensitive substring (default `AXStaticText`; `|` is literal). Choose a substring shared by the wanted lines; use two reads when two fields share none. Each printed file path holds the full read for inspection of any other line. Done means the saved read meets the brief's check. A tool's `effect: unverifiable` label is acceptable when the read-back confirms the value.
 8. Stop after the same error twice, at the brief's bound, or when all done checks pass. Report the failed input and evidence without another identical attempt.
 
 ## Boundaries

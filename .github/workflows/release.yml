@@ -80,6 +80,7 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: release
     permissions:
       contents: read
       id-token: write
@@ -100,4 +101,11 @@ jobs:
           set -eu
           set -- ./release/*.tgz
           test "$#" -eq 1
+          meta="$(tar -xzOf "$1" package/package.json)"
+          name="$(printf '%s' "$meta" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).name')"
+          version="$(printf '%s' "$meta" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')"
+          if npm view "$name@$version" version --prefer-online > /dev/null 2>&1; then
+            echo "$name@$version is already on the registry; nothing to publish."
+            exit 0
+          fi
           npm publish "$1" --provenance --access public

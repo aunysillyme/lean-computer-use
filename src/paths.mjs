@@ -74,6 +74,7 @@ export function payloadFiles(roots, source = packageRoot) {
       files.push({ root, path: `${destination}/${name}`, content: readFileSync(join(source, folder, name)), mode: folder === 'desk' && ['desk', 'desk-read', 'desk-clean', '_resolve.py'].includes(name) || name.endsWith('.sh') ? 0o755 : 0o644 });
     }
   }
+  files.push({ root: 'dir', path: 'skills/lean-computer-use/desk-brief.md', content: readFileSync(join(source, 'briefs/desk-brief.md')), mode: 0o644 });
   const agent = readFileSync(join(source, 'agents/desk-runner.md'), 'utf8').replaceAll('__DESK_DIR__', shellQuote(join(roots.share, 'desk')));
   files.push({ root: 'dir', path: 'agents/desk-runner.md', content: Buffer.from(agent), mode: 0o644 });
   return files;

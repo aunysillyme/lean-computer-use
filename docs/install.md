@@ -12,6 +12,7 @@ npx lean-computer-use --uninstall
 The first command previews its changes and asks for one confirmation.
 The second is the removal alias; `npx lean-computer-use uninstall` is equivalent.
 The installer copies the skill and runner to `~/.claude` and the desk tools and hooks to `~/.local/share/lean-computer-use`.
+The brief template is installed with the skill at `~/.claude/skills/lean-computer-use/desk-brief.md`.
 It does not install the driver or perform a vendor login.
 
 Preview a custom target without writing:
@@ -47,6 +48,7 @@ Review the [brief template](../briefs/desk-brief.md) before handing an agent an 
 ## Other hosts
 
 Copy `skills/lean-computer-use/` to the host's documented skill directory and point its runner at the desk tools.
+Copy `briefs/desk-brief.md` into that skill directory as `desk-brief.md`.
 The automatic installation target is Claude Code.
 
 ## Remove

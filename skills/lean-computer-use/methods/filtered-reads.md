@@ -1,15 +1,26 @@
 # Read fields in one packet
 
-Use one `desk-read` filter covering all requested fields.
-The filter is passed as a driver query; the command prints matching lines and the path to a saved full JSON read.
-Use `--max <lines>` to bound the printed view when needed.
-The saved file is the evidence the main session opens to verify the result.
+Pass one case-insensitive substring per `desk-read`.
+The command sends that string as the driver's `query`, then prints only `tree_markdown` lines containing the same substring, case-insensitively.
+A pipe (`|`) is a literal character. The filter uses substring matching, with no regex or alternation.
+The default filter is `AXStaticText`.
+
+Choose a substring every wanted line shares, such as an element role.
+`AXStaticText` matches every static text line; `--max` bounds the number of matching lines printed (40 by default).
 
 ```sh
-"$DESK/desk-read" <bundle> '<field-a>|<field-b>' --max <lines>
+"$DESK/desk-read" <bundle> 'AXStaticText' --max <lines>
 ```
 
-Use a filter based on observed labels or the brief's named field.
+When two fields share no substring, make two reads using their observed labels:
+
+```sh
+"$DESK/desk-read" <bundle> '<first field label>' --max <lines>
+"$DESK/desk-read" <bundle> '<second field label>' --max <lines>
+```
+
+Every read saves the full JSON response to the printed file path, including lines outside the printed filter or line limit.
+The main session can open that file to inspect any other line and verify the result.
 An empty match count means the printed view has no matches; it does not establish the app's value.
 Inspect the saved read before deciding that a field is missing or a task succeeded.
 Copy the evidence to the granted handoff location before cleanup.

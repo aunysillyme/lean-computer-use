@@ -1,6 +1,6 @@
 # Desk task brief
 
-**Packet (required).** Give the cheap helper or runner every predictable action in one chained command and request all fields in one filtered read. Use a lone action only when its result decides what follows.
+**Packet (required).** Give the cheap helper or runner every predictable action in one chained command. Read several fields with one case-insensitive substring they share, such as `AXStaticText`; use two reads when two fields share none. Use a lone action only when its result decides what follows.
 
 **User's ask.** "<approved ask>"
 **Purpose.** <app outcome and why it matters>
@@ -12,7 +12,7 @@
 **Environment.** `DESK=<installed desk directory>` and `DESK_STATE_DIR=<run-owned state directory>`
 **Initial snapshot.** Run `osascript -e 'application "<Name>" is running'` before acting and retain the answer.
 **Action packet.** <first action to test, then exact predictable desk commands joined with &&>
-**Read packet.** `"$DESK/desk-read" <bundle> '<filter covering all requested fields>' --max <lines>`
+**Read packet.** `"$DESK/desk-read" <bundle> '<one case-insensitive substring>' --max <lines>` (default `AXStaticText`; `|` is literal). Use two reads when two fields share no substring. The full read is always saved to the printed file so the main session can inspect any other line.
 **Done signal.** <field, expected value or condition, and how the main session checks the saved read>
 **Evidence handoff.** <copy the saved full read to the granted path before cleanup>
 **Action approvals.** <exact send/post/delete/buy/accept action approved by the user, or none>

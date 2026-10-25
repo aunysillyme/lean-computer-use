@@ -16,7 +16,8 @@ test('runtime dependency, skill and help budgets hold', () => {
   assert.ok(skill.toString().split('\n').length <= 120);
   const methods = readdirSync(join(folder, 'methods')).map(name => statSync(join(folder, 'methods', name)).size);
   assert.ok(methods.every(size => size <= 8192));
-  assert.ok(skill.length + methods.reduce((a, b) => a + b, 0) <= 204800);
+  const brief = statSync(join(ROOT, 'briefs/desk-brief.md')).size;
+  assert.ok(skill.length + brief + methods.reduce((a, b) => a + b, 0) <= 204800);
   const start = performance.now();
   const help = spawnSync(process.execPath, ['bin/lean-computer-use.mjs', '--help'], { cwd: ROOT, encoding: 'utf8' });
   assert.equal(help.status, 0, help.stderr);

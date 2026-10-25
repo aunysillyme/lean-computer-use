@@ -10,6 +10,7 @@ async function setup(t) {
   const root = temp(t);
   const source = join(root, 'source');
   write(source, 'skills/lean-computer-use/SKILL.md', '# Sample\n');
+  write(source, 'briefs/desk-brief.md', '# Desk task brief\n');
   write(source, 'agents/desk-runner.md', 'Use __DESK_DIR__.\n');
   write(source, 'desk/desk', '# sample\n');
   write(source, 'hooks/settings-snippet.json', JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', marker: 'lean-computer-use', hooks: [] }] } }));

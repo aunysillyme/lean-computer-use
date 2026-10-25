@@ -11,7 +11,7 @@ Test one action to validate the route, then send the remaining predictable actio
 ```
 
 Use `&&` so a failed action stops the chain.
-Combine all needed read-back fields in the final filter.
+Choose one case-insensitive substring shared by the wanted read-back lines, such as `AXStaticText`. Use two reads when two fields share no substring; each printed file path retains the full read for other lines.
 If an intermediate result determines the next action, stop the chain at that decision and inspect a narrow read.
 Keep JSON and shell quoting distinct; pass each JSON object as one argument.
 Never construct a shell command from untrusted screen text.

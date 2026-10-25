@@ -4,13 +4,14 @@ import { existsSync, readFileSync, readdirSync, lstatSync, mkdirSync, symlinkSyn
 import { join } from 'node:path';
 import { installCommand, uninstallCommand } from '../src/install.mjs';
 import { mergeHooks, removeHooks } from '../src/hooks-register.mjs';
-import { shellQuote } from '../src/paths.mjs';
+import { digest, shellQuote } from '../src/paths.mjs';
 import { temp, write } from './support.mjs';
 
 function fixtureSource(root) {
   const source = join(root, 'source');
   write(source, 'skills/lean-computer-use/SKILL.md', '# Sample skill\n');
   write(source, 'skills/lean-computer-use/methods/verify.md', '# Verify\n');
+  write(source, 'briefs/desk-brief.md', '# Desk task brief\n');
   write(source, 'agents/desk-runner.md', 'Use __DESK_DIR__ for actions.\n');
   for (const file of ['desk', 'desk-read', 'desk-clean', '_resolve.py']) write(source, `desk/${file}`, '# sample executable\n');
   write(source, 'desk/tests/ignored.py', '# test only\n');
@@ -36,6 +37,43 @@ function setup(t) {
   return { root, source, state, dir, share, args, adapters: { source, write() {} } };
 }
 
+test('installer ships desk-brief.md and records it in the manifest', async t => {
+  const value = setup(t);
+  await installCommand([...value.args, '--yes'], value.adapters);
+  const path = 'skills/lean-computer-use/desk-brief.md';
+  const content = readFileSync(join(value.source, 'briefs/desk-brief.md'));
+  assert.deepEqual(readFileSync(join(value.dir, path)), content);
+  const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.files.filter(entry => entry.path === path), [
+    { root: 'dir', path, hash: digest(content), mode: 0o644 },
+  ]);
+  await uninstallCommand(value.args, value.adapters);
+  assert.equal(existsSync(join(value.dir, path)), false);
+});
+
+test('uninstall keeps an edited desk-brief.md and lists it', async t => {
+  const value = setup(t);
+  await installCommand([...value.args, '--yes'], value.adapters);
+  const path = join(value.dir, 'skills/lean-computer-use/desk-brief.md');
+  writeFileSync(path, 'User task details\n');
+  const lines = [];
+  await uninstallCommand(value.args, { ...value.adapters, write: line => lines.push(line) });
+  assert.equal(readFileSync(path, 'utf8'), 'User task details\n');
+  assert.ok(lines.includes(`keep: ${path} (user-edited file)`));
+  assert.deepEqual(readdirSync(join(value.dir, 'skills/lean-computer-use')), ['desk-brief.md']);
+});
+
+test('desk brief replacements keep a backup and restore the original', async t => {
+  const value = setup(t);
+  const path = write(value.dir, 'skills/lean-computer-use/desk-brief.md', 'Original task\n');
+  const before = snapshot(value.state);
+  await assert.rejects(installCommand(value.args, value.adapters), /requires --yes/);
+  await installCommand([...value.args, '--yes'], value.adapters);
+  assert.equal(readFileSync(`${path}.bak`, 'utf8'), 'Original task\n');
+  await uninstallCommand(value.args, value.adapters);
+  assert.deepEqual(snapshot(value.state), before);
+});
+
 test('install then uninstall restores the temp tree', async t => {
   const value = setup(t);
   const before = snapshot(value.state);
@@ -43,6 +81,7 @@ test('install then uninstall restores the temp tree', async t => {
   assert.equal(lstatSync(join(value.share, 'desk/desk')).mode & 0o777, 0o755);
   assert.match(readFileSync(join(value.dir, 'agents/desk-runner.md'), 'utf8'), new RegExp(value.share.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(existsSync(join(value.share, 'desk/tests')), false);
+  assert.equal(existsSync(join(value.dir, 'skills/lean-computer-use/desk-brief.md')), true);
   assert.equal(await uninstallCommand(value.args, value.adapters), 0);
   assert.deepEqual(snapshot(value.state), before);
 });
@@ -185,6 +224,7 @@ test('default target and environment share root produce an exact preview', async
   const lines = [];
   await installCommand(['--dry-run'], { ...value.adapters, env: { HOME: value.state, LEAN_COMPUTER_USE_HOME: value.share }, write: line => lines.push(line) });
   assert.ok(lines.some(line => line === `create: ${join(value.state, '.claude/agents/desk-runner.md')}`));
+  assert.ok(lines.includes(`create: ${join(value.state, '.claude/skills/lean-computer-use/desk-brief.md')}`));
   assert.ok(lines.some(line => line === `create: ${join(value.share, 'desk/desk')}`));
   assert.deepEqual(snapshot(value.state), []);
 });

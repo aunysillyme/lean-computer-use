@@ -66,7 +66,7 @@
       "name": "How do I reduce tokens when an AI agent controls Mac apps?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Use a fresh desk-runner, one chained desk call and one filtered desk-read to keep app work in a small context. Run npx lean-computer-use measure on your own transcripts to check the result."
+        "text": "Use a fresh desk-runner, one chained desk call and one filtered desk-read to keep app work in a small context. Choose one case-insensitive substring shared by the wanted lines; use two reads when two fields share none. Open each saved full read to inspect any other line. Run npx lean-computer-use measure on your own transcripts to check the result."
       }
     },
     {
@@ -135,6 +135,7 @@ Test one action first, then verify the saved read and run <code>desk-clean &lt;b
 <details><summary data-faq-question>What is cua-driver and how do I check its permissions?</summary><p data-faq-answer>Run <code>npx lean-computer-use doctor</code> to check cua-driver permissions and get fixes.
 Review <a href="https://github.com/trycua/cua">the upstream source</a> and verify the app with <a href="/docs/install/">docs/cua-driver-install.md</a> before granting permissions.</p></details>
 <details><summary data-faq-question>How do I reduce tokens when an AI agent controls Mac apps?</summary><p data-faq-answer>Use a fresh <code>desk-runner</code>, one chained <code>desk</code> call and one filtered <code>desk-read</code> to keep app work in a small context.
+Choose one case-insensitive substring shared by the wanted lines; use two reads when two fields share none. Open each saved full read to inspect any other line.
 Run <code>npx lean-computer-use measure</code> on your own transcripts to check the result.</p></details>
 <details><summary data-faq-question>How do I measure main-session and subagent tokens?</summary><p data-faq-answer>Run <code>npx lean-computer-use measure --json</code>.
 The report separates both groups and deduplicates assistant message ids.</p></details>

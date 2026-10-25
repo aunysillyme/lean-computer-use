@@ -8,7 +8,7 @@ When no cheap helper is available, the runner handles every native app task.
 1. **Frame:** name one app's bundle id, approved actions, done check, evidence path and limits in the [brief](../briefs/desk-brief.md).
 2. **Snapshot:** check `osascript -e 'application "<Name>" is running'` before acting.
 3. **Act:** choose background keys or typing, test one action, and chain the remaining predictable actions in one call.
-4. **Read:** request all needed fields in one filtered `desk-read`; retain the full saved read for verification.
+4. **Read:** use one case-insensitive substring per `desk-read`, shared by the wanted lines (for example `AXStaticText`). Use two reads when two fields share none. Each printed file path holds the full read so the main session can inspect any other line.
 5. **Clean:** preserve evidence, run `desk-clean`, and compare the final app-running check with the initial snapshot.
 6. **Verify:** the main session opens the saved evidence and checks the stated done signal before reporting.
 

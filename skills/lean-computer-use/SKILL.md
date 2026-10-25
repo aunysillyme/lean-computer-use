@@ -14,7 +14,7 @@ The driver is cua-driver, the background app driver from trycua/cua.
 
 ## Start a run
 
-Read [desk-run](methods/desk-run.md) for the full flow and use the package's [brief template](https://github.com/aunysillyme/lean-computer-use/blob/main/briefs/desk-brief.md) as the brief shape.
+Read [desk-run](methods/desk-run.md) for the full flow and use the installed [brief template](desk-brief.md) as the brief shape.
 Name one app's bundle ID (an app's identifier, for example com.apple.calculator), approved actions, read-back filter, done check, run-owned state and evidence handoff.
 Set a tool-call or time bound suitable for the job before the first action.
 Snapshot whether the app is running with `osascript -e 'application "<Name>" is running'`.
@@ -29,7 +29,8 @@ Use the installed desk folder as `DESK`:
 
 The wrapper resolves the app's process and window ids; leave them out of tool JSON.
 Use keys and typing before element clicks, keep actions in the background, test one action, then chain the predictable remainder (send several desk actions in one command).
-Send all needed fields through one filtered read (a read that prints only matching lines and saves the full read to a file).
+Use one case-insensitive substring per filtered read. Choose a shared substring such as `AXStaticText` for several fields; use two reads when two fields share none.
+Each read prints matching lines and saves the full read to the printed file for inspection of any other line. See [filtered reads](methods/filtered-reads.md).
 Copy the saved full read to the granted handoff location before cleanup removes run state.
 The main session opens that evidence and checks the done signal.
 
