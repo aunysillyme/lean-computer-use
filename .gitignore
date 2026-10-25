@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+.pytest_cache/
+*.tgz
+*.local.txt
+.repo-build/private.local.txt
+.repo-build/work/
+.DS_Store
