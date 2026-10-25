@@ -13,6 +13,12 @@ test('package metrics accept npm array and package-keyed output', () => {
   assert.throws(() => packRecord('{}'), /no package record/);
 });
 
+test('README shows the trailer directly after install within its first thirty lines', () => {
+  const opening = readFileSync(join(ROOT, 'README.md'), 'utf8').split('\n').slice(0, 30).join('\n');
+  assert.ok(opening.includes('```sh\nnpx lean-computer-use\n```\n\n![lean-computer-use: background Mac computer control for AI agents, a 14-second look at the desk commands, the saved read and the cleanup proof](docs/trailer.gif)'));
+  assert.ok(existsSync(join(ROOT, 'docs/trailer.gif')));
+});
+
 test('packed package installs offline, runs commands and uninstalls its files', t => {
   const root = temp(t);
   const env = { ...process.env, npm_config_offline: 'true', npm_config_audit: 'false', npm_config_fund: 'false', npm_config_cache: join(root, 'cache'), LEAN_COMPUTER_USE_HOME: join(root, 'home/.local/share/lean-computer-use'), HOME: join(root, 'home') };
@@ -23,6 +29,8 @@ test('packed package installs offline, runs commands and uninstalls its files', 
     return result.stdout;
   };
   const pack = packRecord(run(npm, ['pack', '--json', '--ignore-scripts', '--offline', '--pack-destination', root], ROOT));
+  assert.ok(pack.files.every(file => !file.path.endsWith('.gif')), 'GIF files stay outside the npm package');
+  assert.ok(pack.files.every(file => !file.path.startsWith('website/')), 'Website files stay outside the npm package');
   assert.ok(pack.size <= 300000 && pack.unpackedSize <= 1000000);
   assert.ok(pack.files.every(file => !/^\.repo-build\/|^(?:test|proof)\/|(?:^|\/)tests\//.test(file.path)));
   // npm 10 matches a bare "*.md" at any depth and npm 12 only at the root, so every nested file must be named by its own entry.

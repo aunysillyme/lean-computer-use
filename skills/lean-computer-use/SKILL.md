@@ -1,6 +1,6 @@
 ---
 name: lean-computer-use
-description: Token-lean computer use for AI agents, with Claude Code as the supported host. Use for named native Mac app tasks through background action chains, filtered reads and verified cleanup.
+description: Background Mac computer control for AI agents, with Claude Code as the supported host. Use for named native Mac app tasks through background action chains, filtered reads and verified cleanup.
 ---
 
 # Lean computer use

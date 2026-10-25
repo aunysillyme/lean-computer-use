@@ -1,7 +1,7 @@
 {
   "name": "lean-computer-use",
   "version": "0.1.0",
-  "description": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command",
+  "description": "Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command",
   "type": "module",
   "bin": { "lean-computer-use": "bin/lean-computer-use.mjs" },
   "engines": { "node": ">=22" },

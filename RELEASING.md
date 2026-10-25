@@ -18,7 +18,7 @@ Our own tools and concepts are named with the aun- prefix; internal names never 
 
 Each step is marked R (reversible) or I (irreversible). Run them in this order, after the maintainer's explicit approval of each.
 
-1. R: Resolve the GitHub Actions billing block so the `Repository checks` workflow can start. Jobs on a private repository did not start on 2026-10-25.
+1. R: The owner flips the repository public first (step 2); no billing change is needed because public repositories run Actions free. CI first runs after the public flip.
 2. I: Flip the repository public: `gh repo edit aunysillyme/lean-computer-use --visibility public --accept-visibility-change-consequences`.
 3. R: Apply the public-only settings, then read each back into [REPO_SETTINGS.md](REPO_SETTINGS.md): private vulnerability reporting, secret scanning and push protection, Dependabot alerts and security updates, branch protection requiring the aggregate `Repository checks` status with no force pushes, and the required reviewer `aunysillyme` on the `release` environment (already created with its `v*` tag policy).
 4. R: Push a no-op commit and confirm `Repository checks` is green on the public repository before any publish.

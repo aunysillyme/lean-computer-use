@@ -12,7 +12,7 @@ const setting = name => settings.split('\n').find(line => line.startsWith(`| ${n
 const topics = ['agent-skills', 'claude-code', 'computer-use', 'native-apps', 'macos', 'cua-driver', 'cua', 'token-efficiency', 'subagents', 'accessibility', 'cli', 'npm', 'developer-tools', 'ai-agents', 'macos-automation'];
 
 test('discovery description and homepage agree across public metadata', () => {
-  assert.equal(facts.description, 'Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command');
+  assert.equal(facts.description, 'Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command');
   assert.ok(facts.description.length <= 160);
   assert.equal(pkg.description, facts.description);
   assert.equal(setting('About description'), facts.description);
@@ -36,7 +36,7 @@ test('discovery topics and keywords share the search terms', () => {
 });
 
 test('discovery lead and early install agree for people and answer engines', () => {
-  assert.equal(facts.lead, 'Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.');
+  assert.equal(facts.lead, 'Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.');
   const lines = readme.split('\n');
   assert.ok(lines.slice(0, 10).includes(`**${facts.lead}**`));
   assert.equal(read('llms.txt').split('\n').find(line => line.startsWith('> ')), `> ${facts.lead}`);

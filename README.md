@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.**
+**Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.**
 
 A chain is several desk actions sent in one command; a filtered read prints only matching lines and saves the full read to a file.
 Each filter is one case-insensitive substring (`AXStaticText` by default); a pipe is literal. Choose a substring shared by the wanted lines, or use two reads when two fields share none. `--max` bounds printed matches; the printed file always holds the full read for any other line.
@@ -13,6 +13,8 @@ What you can do: give your AI a bounded Mac app task and check the saved result 
 ```sh
 npx lean-computer-use
 ```
+
+![lean-computer-use: background Mac computer control for AI agents, a 14-second look at the desk commands, the saved read and the cleanup proof](docs/trailer.gif)
 
 After you install, start a fresh Claude Code session, ask it to use the lean-computer-use skill, then run `npx lean-computer-use doctor`.
 Who it is for: people who run native Mac app tasks with an AI agent such as Claude Code.
@@ -88,7 +90,7 @@ Copy `briefs/desk-brief.md` into that skill directory as `desk-brief.md`.
 | [repo-build-skill](https://github.com/aunysillyme/repo-build-skill) | Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing. |
 | [website-build-skill](https://github.com/aunysillyme/website-build-skill) | A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team. |
 | [lean-browser-use](https://github.com/aunysillyme/lean-browser-use) | Cut browser use cost by about 25% in Claude Code: fresh runner subagent, bulk reads, three guards and a token meter. One npx command |
-| **lean-computer-use** | Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command |
+| **lean-computer-use** | Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command |
 <!-- set:end -->
 
 ## Install where you work

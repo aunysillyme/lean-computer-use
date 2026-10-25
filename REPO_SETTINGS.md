@@ -6,11 +6,11 @@ The rest stay UNVERIFIED until the public flip and are applied in the order give
 | Setting | Expected value | Read-back |
 |---|---|---|
 | Visibility | Private until owner approval of the public flip | Private (read 2026-10-25) |
-| About description | Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command | Matches, 146 characters (read 2026-10-25) |
+| About description | Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command | UNVERIFIED: owner-approved wording, 153 characters; apply and read back with the public flip |
 | Website | https://www.npmjs.com/package/lean-computer-use | Matches (read 2026-10-25); resolves after the first publish |
 | Topics | agent-skills, claude-code, computer-use, native-apps, macos, cua-driver, cua, token-efficiency, subagents, accessibility, cli, npm, developer-tools, ai-agents, macos-automation | Matches, 15 topics (read 2026-10-25) |
 | Default branch | main | main (read 2026-10-25) |
-| Required status | Repository checks | UNVERIFIED: on 2026-10-25 the workflow jobs did not start because the account's Actions billing blocks private-repository runs |
+| Required status | Repository checks | UNVERIFIED: CI first runs after the owner flips the repository public; public repositories run Actions free, so no billing change is needed. Confirm `Repository checks` is green before any publish |
 | Branch protection | Review required; passing required check; no force pushes | UNVERIFIED: GitHub offers this only with Pro or on a public repository (API reply 2026-10-25) |
 | Private vulnerability reporting | Enabled for public repository | UNVERIFIED until the public flip |
 | Secret scanning and push protection | Enabled where supported | UNVERIFIED until the public flip |

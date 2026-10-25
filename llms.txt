@@ -1,6 +1,6 @@
 # lean-computer-use
 
-> Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.
+> Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.
 
 Install: `npx lean-computer-use`
 

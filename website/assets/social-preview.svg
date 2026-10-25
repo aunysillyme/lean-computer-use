@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
   <title id="title">lean-computer-use</title>
-  <desc id="description">Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command</desc>
+  <desc id="description">Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command</desc>
   <defs><radialGradient id="glow"><stop stop-color="#123d22"/><stop offset="1" stop-color="#050806"/></radialGradient></defs>
   <rect width="1200" height="630" fill="#050806"/>
   <rect x="410" width="790" height="630" fill="url(#glow)"/>
@@ -8,8 +8,8 @@
   <path d="M82 126H1118M82 500H1118" stroke="#20382a"/>
   <text x="82" y="97" fill="#3df07a" font-family="system-ui,sans-serif" font-size="18" letter-spacing="3">COMPUTER USE FOR AI AGENTS ON MAC</text>
   <text x="78" y="252" fill="#e0f0e5" font-family="system-ui,sans-serif" font-weight="600" font-size="68" letter-spacing="-3">lean-computer-use</text>
-  <text x="82" y="326" fill="#b6cfbf" font-family="system-ui,sans-serif" font-size="28">Token-lean computer use for AI agents on Mac:</text>
-  <text x="82" y="368" fill="#b6cfbf" font-family="system-ui,sans-serif" font-size="28">desk tools, a runner subagent, retry guards and a</text>
+  <text x="82" y="326" fill="#b6cfbf" font-family="system-ui,sans-serif" font-size="28">Background Mac computer control for AI agents:</text>
+  <text x="82" y="368" fill="#b6cfbf" font-family="system-ui,sans-serif" font-size="28">desk tools, a fresh runner subagent, retry guards and a</text>
   <text x="82" y="410" fill="#b6cfbf" font-family="system-ui,sans-serif" font-size="28">transcript token meter, installed with one command</text>
   <rect x="82" y="532" width="16" height="16" fill="#3df07a"/>
   <text x="114" y="546" fill="#8ba996" font-family="system-ui,sans-serif" font-size="19">npx lean-computer-use</text>

@@ -1,7 +1,7 @@
 {
   "name": "lean-computer-use",
-  "lead": "Token-lean computer use for native Mac apps: chain background actions, read once with a filter, and verify cleanup.",
-  "description": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command",
+  "lead": "Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.",
+  "description": "Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command",
   "install": "npx lean-computer-use",
   "uninstall": "npx lean-computer-use --uninstall",
   "homepage": "https://www.npmjs.com/package/lean-computer-use",
