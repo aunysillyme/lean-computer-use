@@ -1,0 +1,25 @@
+{
+  "name": "lean-computer-use",
+  "version": "0.1.0",
+  "description": "Token-lean native Mac app control with desk tools, a runner, guards and transcript measurement.",
+  "type": "module",
+  "bin": { "lean-computer-use": "bin/lean-computer-use.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "MIT",
+  "author": "Auny LLC",
+  "homepage": "https://www.npmjs.com/package/lean-computer-use",
+  "repository": { "type": "git", "url": "git+https://github.com/aunysillyme/lean-computer-use.git" },
+  "bugs": { "url": "https://github.com/aunysillyme/lean-computer-use/issues" },
+  "funding": "https://github.com/sponsors/aunysillyme",
+  "keywords": ["agent-skills", "claude-code", "computer-use", "native-apps", "macos", "cua-driver", "token-efficiency", "subagents", "accessibility", "cli", "npm", "developer-tools"],
+  "files": ["bin/", "src/", "skills/", "agents/", "briefs/", "desk/desk", "desk/desk-read", "desk/desk-clean", "desk/_resolve.py", "desk/README.md", "desk/exit-codes.json", "hooks/*.py", "hooks/*.sh", "hooks/settings-snippet.json", "docs/*.md", "*.md", "LICENSE", "llms.txt"],
+  "scripts": {
+    "test": "node --test",
+    "test:py": "python3 -m pytest -q desk/tests hooks/tests",
+    "check": "node scripts/self-check.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "proof": "node scripts/proof.mjs"
+  },
+  "devDependencies": { "@types/node": "22.20.5", "typescript": "7.0.2" }
+}

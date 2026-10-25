@@ -1,0 +1,13 @@
+[
+  {"command":"desk","exit":"0","test":"test_pid_window_cache_second_call_does_not_launch_app"},
+  {"command":"desk","exit":"1","test":"test_error_result_without_driver_failure_exits_one"},
+  {"command":"desk","exit":"2","test":"test_invalid_arguments_exit_two_without_desktop_call"},
+  {"command":"desk","exit":"other nonzero","test":"test_driver_failure_exit_code_is_preserved"},
+  {"command":"desk-read","exit":"0","test":"test_desk_read_filters_compact_lines_and_saves_full_json"},
+  {"command":"desk-read","exit":"1","test":"test_error_result_without_driver_failure_exits_one"},
+  {"command":"desk-read","exit":"2","test":"test_invalid_arguments_exit_two_without_desktop_call"},
+  {"command":"desk-read","exit":"other nonzero","test":"test_driver_failure_exit_code_is_preserved"},
+  {"command":"desk-clean","exit":"0","test":"test_clean_launched_by_run_quits_with_explicit_name"},
+  {"command":"desk-clean","exit":"2","test":"test_clean_missing_name_fails_safely_and_still_cleans_state"},
+  {"command":"desk-clean","exit":"3","test":"test_clean_still_running_exits_three_and_removes_state"}
+]

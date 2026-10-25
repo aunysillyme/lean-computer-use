@@ -1,0 +1,46 @@
+# lean-computer-use
+
+> Keep native Mac app work in a small context, chain actions, and verify one filtered read.
+
+Install: `npx lean-computer-use`
+
+## Docs
+
+- [README](https://github.com/aunysillyme/lean-computer-use/blob/main/README.md): Start here.
+- [Documentation index](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/README.md): Choose a guide.
+- [Install](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/install.md): Install and remove the package.
+- [Installer reference](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/INSTALLER.md): Read options and file ownership.
+- [Driver setup](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/cua-driver-install.md): Prepare native app control.
+- [Method](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/METHOD.md): Follow the process.
+- [Stack](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/STACK.md): Read the stack card.
+
+## Reference
+
+- [Skill](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/SKILL.md): Activate the method.
+- [desk-run](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/desk-run.md): Read this method.
+- [same-app-chaining](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/same-app-chaining.md): Read this method.
+- [background-only](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/background-only.md): Read this method.
+- [filtered-reads](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/filtered-reads.md): Read this method.
+- [cleanup-with-proof](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/cleanup-with-proof.md): Read this method.
+- [verify](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/verify.md): Read this method.
+- [failure-modes](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/failure-modes.md): Read this method.
+- [cheap-helper-or-subagent](https://github.com/aunysillyme/lean-computer-use/blob/main/skills/lean-computer-use/methods/cheap-helper-or-subagent.md): Read this method.
+- [Agent instructions](https://github.com/aunysillyme/lean-computer-use/blob/main/AGENTS.md): Use and contribute.
+- [Desk reference](https://github.com/aunysillyme/lean-computer-use/blob/main/desk/README.md): Run and verify desk tools.
+
+<!-- set:start -->
+## Part of a set
+
+- [agent-personalizer](https://github.com/aunysillyme/agent-personalizer): AI custom instructions from approved entries: a profile and rules for Claude Code, Codex, Cursor, Gemini CLI and ChatGPT, kept in sync from one source.
+- [model-orchestrator](https://github.com/aunysillyme/model-orchestrator): Model router for AI coding agents: routes routine work to cheaper models with routing rules, 8 subagents, hooks and a CLI runner
+- [repo-build-skill](https://github.com/aunysillyme/repo-build-skill): Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing.
+- [website-build-skill](https://github.com/aunysillyme/website-build-skill): A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team.
+- [lean-browser-use](https://github.com/aunysillyme/lean-browser-use): The same method for web pages.
+<!-- set:end -->
+
+## Optional
+
+- [Credits](https://github.com/aunysillyme/lean-computer-use/blob/main/CREDITS.md): See upstream sources.
+- [Provenance](https://github.com/aunysillyme/lean-computer-use/blob/main/docs/PROVENANCE.md): Trace borrowed techniques.
+- [Contribute](https://github.com/aunysillyme/lean-computer-use/blob/main/CONTRIBUTING.md): Improve the package.
+- [npm package](https://www.npmjs.com/package/lean-computer-use): Package and command.

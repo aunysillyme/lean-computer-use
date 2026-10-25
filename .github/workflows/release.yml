@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify the tagged source
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # Maintainer verifies and replaces this major tag with a full SHA before release automation.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Require tag equals version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          test "$tag" = "$version"
+      - run: node --test
+      - run: node scripts/build.mjs --check
+      - run: node scripts/self-check.mjs
+      - name: Test desk tools and native hooks
+        run: |
+          python3 -m pip install pytest
+          python3 -m pytest -q desk/tests hooks/tests
+      - name: Check JavaScript types
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+      - name: Check public text
+        run: node scripts/check-terms.mjs
+      - name: Pack once and smoke-install that tarball
+        run: |
+          set -eu
+          release="$RUNNER_TEMP/release"
+          mkdir -p "$release"
+          tarball="$release/$(npm pack --silent --pack-destination "$release")"
+          trial="$(mktemp -d)"
+          trap 'rm -rf "$trial"' EXIT
+          cd "$trial"
+          npm init -y > /dev/null
+          npm install --ignore-scripts --no-audit --no-fund "$tarball"
+          command_path="$trial/node_modules/.bin/lean-computer-use"
+          "$command_path" --help
+          "$command_path" install --dir "$trial/host" --share "$trial/share" --dry-run --yes
+          "$command_path" install --dir "$trial/host" --share "$trial/share" --yes
+          "$command_path" uninstall --dir "$trial/host" --share "$trial/share"
+          node --input-type=module - "$trial/host" "$trial/share" <<'NODE'
+          import fs from 'node:fs';
+          for (const dir of process.argv.slice(2)) {
+            if (fs.existsSync(dir) && fs.readdirSync(dir).length) throw Error('Uninstall left owned content.');
+          }
+          NODE
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-package
+          path: ${{ runner.temp }}/release/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish the verified tarball
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-package
+          path: release
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Select the publishing CLI
+        run: npm install -g npm@12.2.0 --ignore-scripts
+      - name: Publish the verified tarball
+        run: |
+          set -eu
+          set -- ./release/*.tgz
+          test "$#" -eq 1
+          npm publish "$1" --provenance --access public

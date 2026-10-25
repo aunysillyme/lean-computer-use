@@ -1,0 +1,98 @@
+name: Repository checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: [22, 24, 26]
+        include:
+          - os: macos-latest
+            node: 22
+          - os: windows-latest
+            node: 22
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # Maintainer verifies and replaces this major tag with a full SHA before release automation.
+      - uses: actions/setup-python@v5
+        if: runner.os != 'Windows'
+        with:
+          python-version: '3.13'
+      - name: Test Node behavior
+        run: node --test
+      - name: Check generated files
+        run: node scripts/build.mjs --check
+      - name: Check this repository
+        run: node scripts/self-check.mjs
+      - name: Check JavaScript types
+        if: runner.os == 'Linux' && matrix.node == 22
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+      - name: Test desk tools and native hooks
+        if: runner.os != 'Windows'
+        run: |
+          python3 -m pip install pytest
+          python3 -m pytest -q desk/tests hooks/tests
+      - name: Check public text and commit messages
+        run: node scripts/check-terms.mjs
+      - name: Inspect the package allowlist
+        run: npm pack --dry-run --json
+
+  lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify and run actionlint
+        env:
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -eu
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          curl --fail --silent --show-error --location 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz' --output "$work/actionlint.tar.gz"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$work/actionlint.tar.gz" | sha256sum --check --status
+          tar -xzf "$work/actionlint.tar.gz" -C "$work" actionlint
+          "$work/actionlint" .github/workflows/*.yml
+      - name: Inspect workflow security
+        run: pipx run zizmor==1.31.1 --min-severity medium .github/workflows
+
+  required-check:
+    name: Repository checks
+    needs: [checks, lint]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to pass
+        env:
+          MATRIX_RESULT: ${{ needs.checks.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+        run: test "$MATRIX_RESULT" = success && test "$LINT_RESULT" = success

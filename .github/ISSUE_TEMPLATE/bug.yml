@@ -1,0 +1,33 @@
+name: Reproducible failure
+description: Report a command or app workflow that did not meet its done check.
+title: "Failure: "
+body:
+  - type: markdown
+    attributes:
+      value: Use synthetic content. Keep transcripts, credentials and local home paths out of this public report. Use the private security link for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Package version and operating system
+      description: Include Node, Python and cua-driver versions when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Small reproduction
+      description: Include the exact sanitized command or brief, expected outcome and actual outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and exit code
+      description: Include a short sanitized error and cleanup result. Preserve full output locally.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Relevant doctor checks
+      description: Include only the relevant sanitized checks from the structured report.

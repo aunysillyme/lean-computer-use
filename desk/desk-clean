@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""desk-clean <bundle_id> [--app-name NAME] [--launched-by-run]: release run state."""
+import argparse
+import json
+import math
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+from _resolve import (CACHE, DRIVER_MARKER, OWN_FILES, STATE, DeskError,
+                      driver_command, driver_status, state_is_ours)
+
+
+def own_files():
+    if not STATE.exists():
+        return []
+    return [path for path in STATE.iterdir() if (OWN_FILES.fullmatch(path.name) or path.name == DRIVER_MARKER)
+            and not path.is_symlink() and path.is_file()]
+
+
+def read_json(path):
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (ValueError, OSError):
+        return {}
+
+
+def cached_name(bundle_id, files, cache):
+    entry = cache.get(bundle_id)
+    if isinstance(entry, dict) and entry.get("name"):
+        return entry["name"]
+    # Some callers retain a launch result. Match its bundle before using its name.
+    launches = [path for path in files if path.name.startswith("launch_app-")]
+    for path in sorted(launches, key=lambda path: path.stat().st_mtime, reverse=True):
+        launch = read_json(path)
+        detail = launch.get("detail")
+        detail = detail if isinstance(detail, dict) else {}
+        if (launch.get("bundle_id") or detail.get("bundle_id")) == bundle_id:
+            name = launch.get("name") or detail.get("name")
+            if name:
+                return name
+    return None
+
+
+def is_running(escaped, timeout):
+    """Ask macOS itself: the display name need not match the process name."""
+    try:
+        result = subprocess.run(["osascript", "-e", f'application "{escaped}" is running'],
+                                capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise DeskError("osascript is-running check timed out") from None
+    answer = result.stdout.strip()
+    if result.returncode or answer not in ("true", "false"):
+        raise DeskError("osascript is-running check failed")
+    return answer == "true"
+
+
+def quit_app(name):
+    if (not isinstance(name, str) or not name.strip() or name.startswith("-")
+            or any(ord(char) < 32 or ord(char) == 127 for char in name)):
+        raise DeskError("valid --app-name required when no cached launch name is available")
+    wait = float(os.environ.get("DESK_CLEAN_WAIT_S", "5"))
+    if not math.isfinite(wait) or not 0 <= wait <= 5:
+        raise DeskError("DESK_CLEAN_WAIT_S must be between 0 and 5")
+    quit_wait = float(os.environ.get("DESK_CLEAN_QUIT_TIMEOUT_S", "5"))
+    if not math.isfinite(quit_wait) or not 0 < quit_wait <= 5:
+        raise DeskError("DESK_CLEAN_QUIT_TIMEOUT_S must be above 0 and at most 5")
+    escaped = name.replace("\\", "\\\\").replace('"', '\\"')
+    try:
+        # A failed or slow quit command is not the verdict: the is-running poll is.
+        subprocess.run(["osascript", "-e", f'quit app "{escaped}"'],
+                       capture_output=True, text=True, timeout=quit_wait)
+    except subprocess.TimeoutExpired:
+        pass
+    deadline = time.monotonic() + wait
+    while True:
+        if not is_running(escaped, min(5, max(0.5, deadline - time.monotonic()))):
+            return "quit"
+        if time.monotonic() >= deadline:
+            return "still-running"
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+
+
+def clean_state(bundle_id, files, cache):
+    removed = 0
+    cache.pop(bundle_id, None)
+    for path in files:
+        if path == CACHE and cache:
+            # Keep other bundles' identities. Atomic replacement keeps mode 0600.
+            fd, name = tempfile.mkstemp(prefix="apps-", suffix=".json", dir=STATE)
+            temporary = Path(name)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    json.dump(cache, handle, ensure_ascii=False)
+                    handle.write("\n")
+                os.replace(temporary, CACHE)
+            finally:
+                temporary.unlink(missing_ok=True)
+        else:
+            try:
+                # Recheck immediately before removal, just like the prune rule.
+                if not path.is_symlink() and path.is_file():
+                    path.unlink()
+                    removed += 1
+            except FileNotFoundError:
+                pass
+    return removed
+
+
+def stop_driver():
+    try:
+        sessions = driver_command("sessions")
+        running = driver_status()
+        if running is False:
+            return "already-stopped"
+        if running is None or sessions.returncode:
+            return "stop-failed"
+        if sessions.stdout.strip().rstrip(".") != "No live sessions":
+            return "left-running-live-sessions" if sessions.stdout.strip() else "stop-failed"
+        # Only the driver's graceful stop command may stop the shared daemon.
+        driver_command("stop")
+        deadline = time.monotonic() + 5
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return "stop-failed"
+            if driver_status(min(2, remaining)) is False:
+                return "stopped"
+            time.sleep(min(0.1, max(0, deadline - time.monotonic())))
+    except DeskError:
+        return "stop-failed"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("bundle_id")
+    parser.add_argument("--app-name")
+    parser.add_argument("--launched-by-run", action="store_true")
+    options = parser.parse_args()
+    app, rc, error = "left-open", 0, None
+    try:
+        refused = STATE.exists() and not state_is_ours()
+        files = [] if refused else own_files()
+        cache = read_json(CACHE) if CACHE in files else {}
+        if options.launched_by_run:
+            try:
+                name = options.app_name or cached_name(options.bundle_id, files, cache)
+                app = "still-running" if name else "left-open"
+                app = quit_app(name)
+                rc = 3 if app == "still-running" else 0
+            except (DeskError, ValueError, OSError, subprocess.TimeoutExpired) as failure:
+                rc, error = 2, failure
+        removed = clean_state(options.bundle_id, files, cache)
+        driver = stop_driver()
+        if driver == "stop-failed":
+            rc = 3
+        print(f"cleanup: app={app} state_files_removed={removed} "
+              f"remaining_own_files={len(own_files())} driver={driver}")
+        if refused and not error:
+            error = DeskError("refusing to delete: state dir lacks .desk-state marker, "
+                              "is not owned by this user or is not mode 0700")
+        if error and driver != "stop-failed":
+            raise DeskError(str(error))
+        if error:
+            print("desk-clean: " + str(error).replace("\n", " ").replace("\r", " "), file=sys.stderr)
+        return rc
+    except (DeskError, ValueError, OSError) as failure:
+        print("desk-clean: " + str(failure).replace("\n", " ").replace("\r", " "), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

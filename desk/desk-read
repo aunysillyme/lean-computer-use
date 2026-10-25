@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""desk-read <bundle_id> [filter] [--max N]: compact query read plus full JSON file."""
+import argparse
+import json
+import sys
+from _resolve import DeskError, redact, run_tool, save_json
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("bundle_id")
+    parser.add_argument("filter", nargs="?", default="AXStaticText")
+    parser.add_argument("--max", type=int, default=40)
+    options = parser.parse_args()
+    if options.max < 0:
+        parser.error("--max must be nonnegative")
+    try:
+        rc, result, pid, wid, cached = run_tool(options.bundle_id, "get_window_state", {
+            "include_screenshot": False, "query": options.filter,
+        })
+        path = save_json(result, prefix="tree")
+        tree = str(result.get("tree_markdown") or "") if isinstance(result, dict) else ""
+        lines = [safe.strip() for raw, safe in zip(tree.splitlines(), redact(tree).splitlines())
+                 if options.filter.lower() in raw.lower()]
+        print(f"pid={pid} window={wid} cached={cached} shown={min(len(lines), options.max)}/{len(lines)} "
+              f"bytes={path.stat().st_size} file={json.dumps(str(path))}")
+        for line in lines[:options.max]:
+            print(redact(line))
+        if rc or isinstance(result, dict) and result.get("error"):
+            print("desk-read: cua-driver read failed; see saved JSON", file=sys.stderr)
+            return rc or 1
+        return 0
+    except (DeskError, OSError) as error:
+        print("desk-read: " + str(error).replace("\n", " "), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

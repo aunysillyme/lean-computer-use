@@ -1,0 +1,25 @@
+name: Feature or method change
+description: Propose a focused adapter, rule or improvement.
+title: "Proposal: "
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Reader's outcome
+      description: What task should become possible or clearer?
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current workflow
+      description: Describe the smallest example and what you already tried.
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Observable success check
+      description: Name the command, saved value or behavior that would prove this works.
+    validations:
+      required: true

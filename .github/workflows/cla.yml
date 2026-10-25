@@ -1,0 +1,34 @@
+name: Contributor License Agreement
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: cla-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check agreement in visible pull request text
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: |
+          node <<'NODE'
+          const exempt = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(process.env.AUTHOR_ASSOCIATION)
+            || process.env.AUTHOR_TYPE === 'Bot';
+          if (exempt) process.exit(0);
+          const visible = (process.env.PR_BODY || '').replace(/<!--[\s\S]*?(?:-->|$)/g, '');
+          const agreement = /^[-*] \[[xX]\] I agree to the Contributor License Agreement in CLA\.md$/;
+          if (!visible.split(/\r?\n/).some(line => agreement.test(line.trim()))) {
+            console.error('::error::Read CLA.md and tick its agreement box in the pull request description.');
+            process.exit(1);
+          }
+          NODE

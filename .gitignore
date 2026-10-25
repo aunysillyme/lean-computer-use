@@ -6,3 +6,4 @@ __pycache__/
 .repo-build/private.local.txt
 .repo-build/work/
 .DS_Store
+.scratch/

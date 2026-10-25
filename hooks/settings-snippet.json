@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "marker": "lean-computer-use",
+        "matcher": "mcp__computer-use__.*|mcp__cua-driver__.*",
+        "hooks": [{"type": "command", "command": "\"__HOOKS_DIR__/native_retry_guard.sh\""}]
+      },
+      {
+        "marker": "lean-computer-use",
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": "\"__HOOKS_DIR__/native_retry_guard.sh\""}]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "marker": "lean-computer-use",
+        "matcher": "mcp__computer-use__.*|mcp__cua-driver__.*",
+        "hooks": [
+          {"type": "command", "command": "\"__HOOKS_DIR__/native_retry_guard.sh\""},
+          {"type": "command", "command": "\"__HOOKS_DIR__/native_batch_nudge.sh\"", "timeout": 10}
+        ]
+      },
+      {
+        "marker": "lean-computer-use",
+        "matcher": "Bash",
+        "hooks": [
+          {"type": "command", "command": "\"__HOOKS_DIR__/native_retry_guard.sh\""},
+          {"type": "command", "command": "\"__HOOKS_DIR__/native_batch_nudge.sh\"", "timeout": 10}
+        ]
+      }
+    ]
+  }
+}
