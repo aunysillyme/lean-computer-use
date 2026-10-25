@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
+<title>lean-computer-use | Computer use for Mac</title>
+<meta name="description" content="Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command">
+<link rel="canonical" href="https://lean-computer-use.aunysillyme.dev/">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://lean-computer-use.aunysillyme.dev/#software",
+  "name": "lean-computer-use",
+  "description": "Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS",
+  "softwareRequirements": "Python 3, cua-driver, Node.js 22 or later",
+  "license": "https://spdx.org/licenses/MIT.html",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "url": "https://lean-computer-use.aunysillyme.dev/",
+  "author": {
+    "@type": "Person",
+    "@id": "https://www.aunysillyme.com/#person",
+    "name": "Auny",
+    "url": "https://www.aunysillyme.com/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://www.aunysillyme.com/#organization",
+    "name": "AunySillyMe",
+    "url": "https://www.aunysillyme.com/"
+  }
+}</script>
+<script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I use computer use on a Mac in the background?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Use desk for background keys, then chain predictable actions in one call with desk \u003cbundle> \u003ctool> '\u003cjson>' && desk \u003cbundle> \u003ctool> '\u003cjson>' && desk-read \u003cbundle> '\u003cfilter>'. Test one action first, then verify the saved read and run desk-clean \u003cbundle> --app-name \u003cName>; add --launched-by-run only when this run opened the app."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is cua-driver and how do I check its permissions?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "cua-driver is the upstream native app driver from trycua/cua; run npx lean-computer-use doctor to check its permissions and get fixes. Follow docs/cua-driver-install.md to verify the app before granting permissions."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I reduce tokens when an AI agent controls Mac apps?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Use a fresh desk-runner, one chained desk call and one filtered desk-read to keep app work in a small context. Run npx lean-computer-use measure on your own transcripts to check the result."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I measure main-session and subagent tokens?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run npx lean-computer-use measure --json. The report separates both groups and deduplicates assistant message ids."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install the optional retry hook for native app errors?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run npx lean-computer-use install --with-hooks and review the settings change. The retry hook blocks the third identical error attempt; the installer backs up the settings file and preserves unrelated registrations."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I keep my edited skill when uninstalling?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run npx lean-computer-use uninstall --dry-run to review the plan. Uninstall preserves an owned file whose hash differs from the installed copy and reports it for manual review."
+      }
+    }
+  ]
+}</script>
+</head>
+<body class="landing">
+<a class="skip" href="#main">Skip to content</a><header class="top"><a class="brand" href="/">lean-computer-use</a><nav class="topnav" aria-label="Project links"><a href="https://github.com/aunysillyme/lean-computer-use">GitHub</a><a href="https://www.npmjs.com/package/lean-computer-use">npm</a></nav></header>
+  <div class="layout">
+    <div class="navigation">
+      <button class="menu-toggle" type="button" data-menu-toggle aria-controls="site-sidebar" aria-expanded="false">Menu</button>
+    <aside class="sidebar" id="site-sidebar">
+<p class="side-label">lean-computer-use</p><nav class="side-links" aria-label="On this page"><a href="#overview" class="active" aria-current="location">Overview</a>
+<a href="#how-it-works">How computer use works</a>
+<a href="#trailer">Watch the trailer</a>
+<a href="#quickstart">Getting started</a>
+<a href="#reference">Commands &amp; guides</a>
+<a href="#proof">Proof &amp; guarantees</a>
+<a href="#releases">Changelog</a></nav><p class="side-label">DOCUMENTATION</p><nav class="side-links" aria-label="DOCUMENTATION"><a href="/docs/overview/">Overview</a>
+<a href="/docs/how-it-works/">How computer use works</a>
+<a href="/docs/guides/">Guides</a>
+<a href="/docs/commands/">Commands</a>
+<a href="/docs/proof/">Proof</a>
+<a href="/docs/changelog/">Changelog</a>
+<a href="/docs/install/">Install</a>
+<a href="/docs/guarantees/">Guarantees</a></nav>
+    </aside>
+    </div>
+    <main class="main" id="main">
+<section class="hero" id="overview"><div><p class="eyebrow">COMPUTER USE FOR AI AGENTS ON MAC</p><h1><span class="headline-line">Let your AI use Mac apps.</span><em>In the background.</em></h1><p class="lede">Token-lean computer use for Claude Code: give your AI a bounded Mac task, chain background actions in native apps, and check the saved result and cleanup.</p><div class="install"><span aria-hidden="true">$</span><code id="install-command">npx lean-computer-use</code><button class="copy" type="button" data-copy="install-command" aria-label="Copy install command">Copy install command</button></div><p id="copy-status" role="status" class="sr-only" data-success="Install command copied." data-fallback="Select the install command to copy it."></p><div class="hero-actions"><a class="primary" href="#quickstart">From install to your first task</a><a href="https://github.com/aunysillyme/lean-computer-use">Source</a></div></div><div class="routing"><p class="eyebrow">ONE BOUNDED APP TASK</p><div class="route-step">Frame: app, actions and done check</div><div class="route-step">Run: background actions in a fresh runner</div><div class="route-step">Read: filtered view and full saved evidence</div><div class="route-step">Verify: saved result and cleanup proof</div><p class="note">The main session frames the task and checks the saved evidence.</p></div></section>
+<div class="trust"><span>Controls native Mac apps</span><span>Runs in the background</span><span>Saved reads</span><span>Cleanup proof</span><span>MIT licensed</span></div>
+<section class="content section" id="how-it-works"><div class="section-title"><h2>A shared way to get work done.</h2></div><div class="three"><article><div class="feature-num">01</div><h3>Give the agent one clear app task.</h3><p>Define the target Mac app, the work to do and the result to check.</p></article><article><div class="feature-num">02</div><h3>Let a fresh runner use the app.</h3><p>The runner chains related desk actions and saves an app read for inspection.</p></article><article><div class="feature-num">03</div><h3>Check the saved read and the cleanup.</h3><p>Inspect the evidence, confirm the result and check the cleanup proof.</p></article></div></section>
+<section class="content section" id="trailer"><div class="section-title"><h2>What this does</h2></div><figure class="poster"><img src="/assets/poster.png" alt="Trailer still: Your Mac stays yours. A fresh runner handles the app." width="1280" height="720" loading="lazy"><figcaption>A still from the trailer.</figcaption></figure></section>
+<section class="content section" id="quickstart"><div class="section-title"><h2>From install to your first task</h2></div><div class="docs-grid"><div><div class="step"><b>01</b><div><h3>Run the installer.</h3><p>Review the setup guidance for your AI agent.</p></div></div><div class="step"><b>02</b><div><h3>Check the Mac setup with doctor.</h3><p>Review the requirements and permission guidance.</p></div></div><div class="step"><b>03</b><div><h3>Give the agent a bounded app task.</h3><p>Name the done signal, preserve the saved read and return cleanup proof.</p></div></div></div><div class="code"><pre><code>npx lean-computer-use
+
+npx lean-computer-use doctor
+
+npx lean-computer-use install --with-hooks</code></pre><a href="/docs/install/">Read the complete installation guide</a></div></div></section>
+<section class="content section" id="reference"><div class="section-title"><h2>Go a little deeper.</h2></div><div class="docs-links"><a class="doc-link" href="/docs/commands/">desk, desk-read, desk-clean<span>Run, read and clean up a Mac app.</span></a><a class="doc-link" href="/docs/guides/">Task brief<span>Define the app task and the done check.</span></a><a class="doc-link" href="/docs/commands/">measure and doctor<span>Check your setup and your own token use.</span></a><a class="doc-link" href="/docs/guarantees/">Retry guard and batch hint<span>Stop repeated native errors and group actions.</span></a></div></section>
+<section class="content section" id="requirements"><div class="section-title"><h2>Requirements</h2></div><div class="requirements"><article><h3>macOS</h3><p>Native app control runs on macOS.</p></article><article><h3>Python 3</h3><p>The desk tools use Python.</p></article><article><h3>Node 22 or newer</h3><p>The installer, doctor and transcript measurement run on Node.js.</p></article><article><h3>cua-driver</h3><p>Install the upstream driver and review its permission guidance.</p></article></div></section>
+<section class="content section" id="questions"><div class="section-title"><h2>Common questions</h2></div><div class="faq"><details><summary data-faq-question>How do I use computer use on a Mac in the background?</summary><p data-faq-answer>Use <code>desk</code> for background keys, then chain predictable actions in one call with <code>desk &lt;bundle&gt; &lt;tool&gt; &#39;&lt;json&gt;&#39; &amp;&amp; desk &lt;bundle&gt; &lt;tool&gt; &#39;&lt;json&gt;&#39; &amp;&amp; desk-read &lt;bundle&gt; &#39;&lt;filter&gt;&#39;</code>.
+Test one action first, then verify the saved read and run <code>desk-clean &lt;bundle&gt; --app-name &lt;Name&gt;</code>; add <code>--launched-by-run</code> only when this run opened the app.</p></details>
+<details><summary data-faq-question>What is cua-driver and how do I check its permissions?</summary><p data-faq-answer>cua-driver is the upstream native app driver from <a href="https://github.com/trycua/cua">trycua/cua</a>; run <code>npx lean-computer-use doctor</code> to check its permissions and get fixes.
+Follow <a href="/docs/install/">docs/cua-driver-install.md</a> to verify the app before granting permissions.</p></details>
+<details><summary data-faq-question>How do I reduce tokens when an AI agent controls Mac apps?</summary><p data-faq-answer>Use a fresh <code>desk-runner</code>, one chained <code>desk</code> call and one filtered <code>desk-read</code> to keep app work in a small context.
+Run <code>npx lean-computer-use measure</code> on your own transcripts to check the result.</p></details>
+<details><summary data-faq-question>How do I measure main-session and subagent tokens?</summary><p data-faq-answer>Run <code>npx lean-computer-use measure --json</code>.
+The report separates both groups and deduplicates assistant message ids.</p></details>
+<details><summary data-faq-question>How do I install the optional retry hook for native app errors?</summary><p data-faq-answer>Run <code>npx lean-computer-use install --with-hooks</code> and review the settings change.
+The retry hook blocks the third identical error attempt; the installer backs up the settings file and preserves unrelated registrations.</p></details>
+<details><summary data-faq-question>How do I keep my edited skill when uninstalling?</summary><p data-faq-answer>Run <code>npx lean-computer-use uninstall --dry-run</code> to review the plan.
+Uninstall preserves an owned file whose hash differs from the installed copy and reports it for manual review.</p></details></div></section>
+<section class="content section" id="set"><div class="section-title"><h2>Part of a set</h2></div><div class="markdown"><div class="table-scroll"><table><thead><tr><th scope="col">Repo</th><th scope="col">What it gives you</th></tr></thead><tbody><tr><td><a href="https://github.com/aunysillyme/agent-personalizer">agent-personalizer</a></td><td>AI custom instructions from approved entries: a profile and rules for Claude Code, Codex, Cursor, Gemini CLI and ChatGPT, kept in sync from one source.</td></tr><tr><td><a href="https://github.com/aunysillyme/model-orchestrator">model-orchestrator</a></td><td>Model router for AI coding agents: routes routine work to cheaper models with routing rules, 8 subagents, hooks and a CLI runner</td></tr><tr><td><a href="https://github.com/aunysillyme/repo-build-skill">repo-build-skill</a></td><td>Skill pack that teaches your AI to build, release and launch a GitHub repo: stack pick, README, AGENTS.md, llms.txt, repo SEO and AEO, trusted publishing.</td></tr><tr><td><a href="https://github.com/aunysillyme/website-build-skill">website-build-skill</a></td><td>A skill pack that turns your AI into an expert website builder: current research, design, code, accessibility, speed, SEO and security, alone or as a team.</td></tr><tr><td><a href="https://github.com/aunysillyme/lean-browser-use">lean-browser-use</a></td><td>Cut browser use token cost about 3x per step for AI agents: fresh runner subagent, bulk reads, three guards and a token meter. One npx command</td></tr><tr><td><strong>lean-computer-use</strong></td><td>Token-lean computer use for AI agents on Mac: desk tools, a runner subagent, retry guards and a transcript token meter, installed with one command</td></tr></tbody></table></div></div></section>
+<section class="content section" id="proof"><div class="section-title"><h2>Evidence you can inspect.</h2></div><p class="note">The token median is a test fixture. Measure your own transcripts to check your tasks.</p><div class="table-scroll"><table class="proof-table"><thead><tr><th scope="col">Measurement</th><th scope="col">Value</th><th scope="col">Measured</th><th scope="col">Expires</th></tr></thead><tbody>
+<tr data-proof="tarball-size"><th scope="row">Packed package size</th><td data-value>49258 bytes</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="tarball-files"><th scope="row">Packed file count</th><td data-value>53 files</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="runtime-dependencies"><th scope="row">Runtime dependencies</th><td data-value>0 packages</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="node-tests"><th scope="row">Node test cases passed</th><td data-value>62 cases</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="python-tests"><th scope="row">Python test cases passed</th><td data-value>116 cases</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="measure-fixture"><th scope="row">Fixture main median (test fixture)</th><td data-value>200 tokens</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+<tr data-proof="desk-exits"><th scope="row">Documented desk exits covered</th><td data-value>11 exit codes</td><td data-measured>2026-10-25</td><td data-expires>2027-01-23</td></tr>
+</tbody></table></div><p><a href="/docs/proof/">Measured results</a> · <a href="/docs/guarantees/">Guarantees</a></p></section>
+<section class="content section" id="releases"><div class="section-title"><h2>Fresh from the repo.</h2></div><div class="release"><strong>v0.1.0 not released yet</strong><a href="/docs/changelog/">Full changelog</a></div></section>
+<footer class="bottom"><span>MIT licensed.</span><a href="https://github.com/aunysillyme/lean-computer-use">View on GitHub</a><span>Source <a href="https://github.com/aunysillyme/lean-computer-use/commit/7a7c18b66cb790745c62f95297a70a723fd8510f">7a7c18b</a></span></footer>
+    </main>
+  </div>
+</body>
+</html>

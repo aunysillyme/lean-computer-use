@@ -1,0 +1,122 @@
+[
+  {
+    "id": "skill",
+    "name": "lean-computer-use skill",
+    "kind": "skill",
+    "does": "Teaches eight focused methods: Desk run, Same-app chaining, Background only, Filtered reads, Cleanup with proof, Verify, Failure modes, and Cheap helper or subagent. These methods cover framing one app task, chaining predictable actions, choosing background input, reading fields, cleaning up, checking saved evidence, stopping on failures, and choosing the app worker. The main session frames the task and verifies evidence while the helper or runner performs the app actions.",
+    "commands": [],
+    "source": [
+      "skills/lean-computer-use/SKILL.md",
+      "skills/lean-computer-use/methods/desk-run.md",
+      "skills/lean-computer-use/methods/same-app-chaining.md",
+      "skills/lean-computer-use/methods/background-only.md",
+      "skills/lean-computer-use/methods/filtered-reads.md",
+      "skills/lean-computer-use/methods/cleanup-with-proof.md",
+      "skills/lean-computer-use/methods/verify.md",
+      "skills/lean-computer-use/methods/failure-modes.md",
+      "skills/lean-computer-use/methods/cheap-helper-or-subagent.md"
+    ],
+    "must_appear": ["Desk run", "Same-app chaining", "Background only", "Filtered reads", "Cleanup with proof", "Verify", "Failure modes", "Cheap helper or subagent", "The main session frames the task, verifies evidence and reports"],
+    "keywords": { "primary": "focused methods", "secondary": [] }
+  },
+  {
+    "id": "runner",
+    "name": "desk-runner agent",
+    "kind": "agent",
+    "does": "Runs one named app task in a fresh context, tests one background action, then chains the predictable remainder and returns a filtered read. Stops after the same error twice or at the brief's bound, preserves the full saved read before cleanup, and returns fewer than eight report lines with a checked cleanup line. The main session opens the saved evidence to verify the result.",
+    "commands": [],
+    "source": ["agents/desk-runner.md"],
+    "must_appear": ["You run the named Mac app task in a fresh context.", "Test one action and verify its route", "Stop after the same error twice", "Return fewer than 8 lines", "Preserve the full saved read"],
+    "keywords": { "primary": "fresh runner", "secondary": [] }
+  },
+  {
+    "id": "brief",
+    "name": "desk-brief.md",
+    "kind": "template",
+    "does": "Records the named app, permitted actions, capabilities, state and evidence paths, initial app snapshot, action chain, read filter, and done signal before work begins. Captures exact approvals, denied actions, cleanup checks, report shape, and a tool-call or time bound so the runner can stop and hand back evidence.",
+    "commands": [],
+    "source": ["briefs/desk-brief.md"],
+    "must_appear": ["**App.**", "**Granted scope.**", "**Initial snapshot.**", "**Done signal.**", "**Action approvals.**", "**Cleanup.**", "**Exit parameters.**"],
+    "keywords": { "primary": "app task brief", "secondary": [] }
+  },
+  {
+    "id": "desk",
+    "name": "desk and _resolve.py",
+    "kind": "command and resolver",
+    "does": "Resolves an app bundle id to a process and usable window, injects those ids into the requested cua-driver call, and saves the full JSON response while printing a short result. Starts the driver when needed and caches app identities for later calls; usage, JSON, resolution, startup, or local file errors return exit 2. Background keys and typing are selected by the runner's workflow.",
+    "commands": ["desk com.apple.calculator press_key '{\"key\":\"Escape\"}'"],
+    "source": ["desk/desk", "desk/_resolve.py", "desk/README.md", "skills/lean-computer-use/methods/background-only.md"],
+    "must_appear": ["args = dict(args, pid=pid, window_id=wid)", "path = save_json(result, prefix=options.tool)", "def ensure_driver():", "def app_cache():", "return 2", "Prefer background key presses, then typing"],
+    "keywords": { "primary": "background actions", "secondary": [] }
+  },
+  {
+    "id": "read",
+    "name": "desk-read",
+    "kind": "command",
+    "does": "Calls get_window_state without a screenshot, saves the full JSON response, and prints lines matching a case-insensitive literal text filter with secure text fields redacted. The filter defaults to AXStaticText and --max limits the printed view to 40 lines by default; the output includes the saved file path for independent verification.",
+    "commands": ["desk-read com.apple.calculator AXStaticText --max 40"],
+    "source": ["desk/desk-read", "desk/_resolve.py", "desk/README.md"],
+    "must_appear": ["\"include_screenshot\": False", "if options.filter.lower() in raw.lower()", "default=\"AXStaticText\"", "parser.add_argument(\"--max\", type=int, default=40)", "AXSecureTextField", "file={json.dumps(str(path))}"],
+    "keywords": { "primary": "filtered read", "secondary": [] }
+  },
+  {
+    "id": "clean",
+    "name": "desk-clean",
+    "kind": "command",
+    "does": "Removes owned result files and the selected app's cache entry, and gently quits the app only when --launched-by-run is supplied. Checks the app state and stops the shared driver only when its session query confirms no live sessions; exit 3 reports an app still running or an unconfirmed driver stop. Preserve the saved read before cleanup and use the flag only when this run opened the app.",
+    "commands": ["desk-clean com.apple.calculator --app-name Calculator"],
+    "source": ["desk/desk-clean", "desk/README.md", "skills/lean-computer-use/methods/cleanup-with-proof.md"],
+    "must_appear": ["cache.pop(bundle_id, None)", "if options.launched_by_run:", "quit_app(name)", "No live sessions", "rc = 3 if app == \"still-running\" else 0", "Preserve the final saved read", "--app-name", "--launched-by-run"],
+    "keywords": { "primary": "cleanup proof", "secondary": [] }
+  },
+  {
+    "id": "retry",
+    "name": "Retry guard",
+    "kind": "optional hook",
+    "does": "Records native tool and desk command errors, then blocks a third attempt with identical tool name and input after two errors. Probe calls stay unblocked, and malformed input or internal errors allow the call so the runner still follows the brief's stopping rules.",
+    "commands": ["npx lean-computer-use install --with-hooks"],
+    "source": ["hooks/native_retry_guard.py", "hooks/_common.py", "hooks/README.md", "docs/INSTALLER.md"],
+    "must_appear": ["Stop a third identical native-app attempt after two error results.", "call[\"probe\"]", "previous.get(\"count\", 0) >= 2", "except Exception:", "npx lean-computer-use install --with-hooks"],
+    "keywords": { "primary": "retry guard", "secondary": [] }
+  },
+  {
+    "id": "batch",
+    "name": "Batch hint",
+    "kind": "optional hook",
+    "does": "Adds one non-blocking hint after consecutive single native actions, asking the runner to chain remaining actions and read once. A probe, filtered read, cleanup, or chained desk call resets the streak; the hint always exits 0 and allows calls when input is malformed or an internal error occurs.",
+    "commands": ["npx lean-computer-use install --with-hooks"],
+    "source": ["hooks/native_batch_nudge.py", "hooks/_common.py", "hooks/README.md", "docs/INSTALLER.md"],
+    "must_appear": ["streak[\"count\"] >= 2 and not streak[\"nudged\"]", "additionalContext", "if call[\"probe\"] or call[\"read\"] or call[\"batch\"]:", "return 0", "except Exception:", "npx lean-computer-use install --with-hooks"],
+    "keywords": { "primary": "batch hint", "secondary": [] }
+  },
+  {
+    "id": "measure",
+    "name": "measure",
+    "kind": "command",
+    "does": "Scans local Claude Code transcript files for native MCP or desk calls, counts each assistant message id once using its largest input total, and separates main-session and subagent use. Reports steps, median, p90, mean, total, and re-read share; --projects-dir, --since, and --tool-pattern narrow the scan, while --json returns structured results.",
+    "commands": ["npx lean-computer-use measure --json"],
+    "source": ["src/measure.mjs", "skills/lean-computer-use/SKILL.md"],
+    "must_appear": ["const messages = new Map();", "total > current.total", "main: groupStats", "subagent: groupStats", "rereadShare", "--projects-dir", "--since", "--tool-pattern", "--json"],
+    "keywords": { "primary": "transcript measurement", "secondary": [] }
+  },
+  {
+    "id": "doctor",
+    "name": "doctor",
+    "kind": "command",
+    "does": "Checks Node, Python, installed skill, agent and desk files, and optional hook registrations, with a fix for each check. On macOS it also checks osascript, the driver, daemon state, Accessibility and Screen Recording permissions, and telemetry status; other platforms receive native-check warnings. --json returns the report, and any failed check gives exit 1.",
+    "commands": ["npx lean-computer-use doctor --json"],
+    "source": ["src/doctor.mjs"],
+    "must_appear": ["add('node'", "add('python'", "add('installed-files'", "add('hooks'", "['osascript', 'driver', 'daemon', 'permissions', 'telemetry']", "state.accessibility === true && state.screen_recording === true", "--json", "checks.some(check => check.status === 'FAIL') ? 1 : 0"],
+    "keywords": { "primary": "environment checks", "secondary": [] }
+  },
+  {
+    "id": "installer",
+    "name": "Installer and uninstall",
+    "kind": "commands",
+    "does": "Previews package files, asks for confirmation, and installs the skill, runner, desk scripts and hook files while recording hashes and ownership in a manifest. --with-hooks merges marked registrations, --dry-run previews without writes, and --yes confirms a reviewed unattended install and replacement backups. Uninstall rechecks hashes, preserves edited files, restores recorded backups when safe, and removes only marked hook registrations.",
+    "commands": ["npx lean-computer-use install --dry-run", "npx lean-computer-use uninstall --dry-run"],
+    "source": ["src/install.mjs", "src/paths.mjs", "docs/INSTALLER.md"],
+    "must_appear": ["Install these files? [y/N]", "if (options.dryRun) return 0;", "install-manifest.json", "keep: ${path} (user-edited file)", "kind: 'restore'", "--with-hooks", "--yes", "Uninstall removes only entries carrying this install's marker."],
+    "keywords": { "primary": "package installer", "secondary": [] }
+  }
+]

@@ -7,3 +7,6 @@ __pycache__/
 .repo-build/work/
 .DS_Store
 .scratch/
+website/dist/
+website/node_modules/
+website/facts.json

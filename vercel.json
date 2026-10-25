@@ -1,0 +1,5 @@
+{
+  "installCommand": "npm --prefix website ci",
+  "buildCommand": "node website/build.mjs --live && node website/check.mjs --live",
+  "outputDirectory": "website/dist"
+}
