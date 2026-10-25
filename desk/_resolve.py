@@ -115,8 +115,13 @@ def ensure_driver():
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise DeskError("cannot start cua-driver: daemon not running within 10 s")
-        if driver_status(min(2, remaining)) is True:
-            return
+        try:
+            if driver_status(min(2, remaining)) is True:
+                return
+        except DeskError as error:
+            # One slow status probe is not a failed start; keep polling until the deadline.
+            if "timed out" not in str(error):
+                raise
         time.sleep(min(0.1, max(0, deadline - time.monotonic())))
 
 
@@ -186,7 +191,7 @@ def resolve(bid):
         try:
             rc, launch = call("launch_app", {"bundle_id": bid}, timeout=remaining)
         except DeskError as error:
-            if "timed out" in str(error):
+            if str(error) == "cua-driver call timed out":
                 break
             raise
         if not isinstance(launch, dict):

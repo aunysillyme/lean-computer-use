@@ -839,3 +839,40 @@ def test_documented_exit_table_names_real_cases():
         assert row["command"] in {"desk", "desk-read", "desk-clean"}
         assert row["exit"] in {"0", "1", "2", "3", "other nonzero"}
     assert len({(row["command"], row["exit"]) for row in rows}) == len(rows)
+
+
+def _resolver(monkeypatch, tmp_path):
+    monkeypatch.syspath_prepend(str(DESK_DIR))
+    monkeypatch.setenv("DESK_STATE_DIR", str(tmp_path / "state"))
+    sys.modules.pop("_resolve", None)
+    import _resolve
+    return _resolve
+
+
+def test_slow_status_probe_keeps_polling_until_daemon_runs(monkeypatch, tmp_path):
+    resolver = _resolver(monkeypatch, tmp_path)
+    answers = iter([False, "slow", True])
+
+    def status(timeout=5):
+        answer = next(answers)
+        if answer == "slow":
+            raise resolver.DeskError("cua-driver status timed out")
+        return answer
+
+    monkeypatch.setattr(resolver, "driver_status", status)
+    monkeypatch.setattr(resolver.subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
+    resolver.ensure_driver()
+    assert (tmp_path / "state" / "driver-started").exists()
+
+
+def test_open_timeout_is_reported_as_itself_not_as_a_missing_window(monkeypatch, tmp_path):
+    resolver = _resolver(monkeypatch, tmp_path)
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: False)
+
+    def slow_open(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], 5)
+
+    monkeypatch.setattr(resolver.subprocess, "run", slow_open)
+    with pytest.raises(resolver.DeskError, match="open timed out"):
+        resolver.resolve("com.apple.calculator")

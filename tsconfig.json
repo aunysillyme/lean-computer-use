@@ -7,7 +7,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "include": ["src/**/*.mjs", "bin/**/*.mjs"]
 }
