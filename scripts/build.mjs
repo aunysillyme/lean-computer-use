@@ -5,13 +5,22 @@ import { fileURLToPath } from 'node:url';
 import { termHashes, digest } from './privacy.mjs';
 import { checkSet } from './set-check.mjs';
 
+export function firstHeading(source) {
+  let fence = false;
+  for (const line of source.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+    const match = fence ? null : line.match(/^#\s+(.+?)(?:\s+#+)?\s*$/);
+    if (match) return match[1];
+  }
+}
+
 export function llmsSource(root) {
   const facts = JSON.parse(readFileSync(resolve(root, '.repo-build/facts.json'), 'utf8'));
   const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
   const base = `https://github.com/aunysillyme/lean-computer-use/blob/v${pkg.version}/`;
   const link = (path, text) => {
     const source = readFileSync(resolve(root, path), 'utf8');
-    const label = source.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1];
+    const label = firstHeading(source);
     if (!label) throw Error(`Missing first heading: ${path}`);
     return `- [${label}](${base}${path}): ${text}`;
   };

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { packRecord } from '../scripts/proof.mjs';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, chmodSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, chmodSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, temp, write } from './support.mjs';
 
@@ -25,6 +25,12 @@ test('packed package installs offline, runs commands and uninstalls its files', 
   const pack = packRecord(run(npm, ['pack', '--json', '--ignore-scripts', '--offline', '--pack-destination', root], ROOT));
   assert.ok(pack.size <= 300000 && pack.unpackedSize <= 1000000);
   assert.ok(pack.files.every(file => !/^\.repo-build\/|^(?:test|proof)\/|(?:^|\/)tests\//.test(file.path)));
+  // npm 10 matches a bare "*.md" at any depth and npm 12 only at the root, so every nested file must be named by its own entry.
+  const entries = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).files.filter(entry => entry !== '*.md');
+  const named = path => entries.some(entry => entry.endsWith('/') ? path.startsWith(entry)
+    : new RegExp(`^${entry.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')}$`).test(path));
+  assert.deepEqual(pack.files.map(file => file.path).filter(path => path.includes('/') && !named(path)), []);
+  assert.ok(pack.files.some(file => file.path === 'hooks/README.md'));
   write(root, 'package.json', '{"private":true}');
   run(npm, ['install', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', join(root, pack.filename)]);
   const binary = join(root, 'node_modules/lean-computer-use/bin/lean-computer-use.mjs');
