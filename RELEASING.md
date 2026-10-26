@@ -18,13 +18,14 @@ Our own tools and concepts are named with the aun- prefix; internal names never 
 
 Each step is marked R (reversible) or I (irreversible). Run them in this order, after the maintainer's explicit approval of each.
 
-1. R: The owner flips the repository public first (step 2); no billing change is needed because public repositories run Actions free. CI first runs after the public flip.
-2. I: Flip the repository public: `gh repo edit aunysillyme/lean-computer-use --visibility public --accept-visibility-change-consequences`.
-3. R: Apply the public-only settings, then read each back into [REPO_SETTINGS.md](REPO_SETTINGS.md): private vulnerability reporting, secret scanning and push protection, Dependabot alerts and security updates, branch protection requiring the aggregate `Repository checks` status with no force pushes, and the required reviewer `aunysillyme` on the `release` environment (already created with its `v*` tag policy).
-4. R: Push a no-op commit and confirm `Repository checks` is green on the public repository before any publish.
-5. I: Claim the name by publishing the first version by hand: `npm login` with the security key, then `npm publish ./lean-computer-use-0.1.0.tgz --access public` from the verified tarball. This publish carries no provenance.
-6. R: Configure npm Trusted Publishing (npm 11.15 or newer; the package must already exist): `npm trust github lean-computer-use --file release.yml --repo aunysillyme/lean-computer-use --env release --allow-publish`. The configuration expires unless it completes one successful trusted publish within 2 days, so plan the next release (0.1.1) inside that window.
-7. R: Add this package and the browser sibling to the canonical set source in the owner's `.github` repository.
+The repository goes public first and no billing change is needed: public repositories run Actions free, so CI first runs after the flip.
+
+1. I: Flip the repository public: `gh repo edit aunysillyme/lean-computer-use --visibility public --accept-visibility-change-consequences`.
+2. R: Apply the public-only settings, then read each back into [REPO_SETTINGS.md](REPO_SETTINGS.md): private vulnerability reporting, secret scanning and push protection, Dependabot alerts and security updates, branch protection requiring the aggregate `Repository checks` status with no force pushes, and the required reviewer `aunysillyme` on the `release` environment (already created with its `v*` tag policy).
+3. R: Push a no-op commit and confirm `Repository checks` is green on the public repository before any publish.
+4. I: Claim the name by publishing the first version by hand: `npm login` with the security key, then `npm publish ./lean-computer-use-0.1.0.tgz --access public` from the verified tarball. This publish carries no provenance.
+5. R: Configure npm Trusted Publishing (npm 11.15 or newer; the package must already exist): `npm trust github lean-computer-use --file release.yml --repo aunysillyme/lean-computer-use --env release --allow-publish`. The configuration expires unless it completes one successful trusted publish within 2 days, so plan the next release (0.1.1) inside that window.
+6. R: Add this package and the browser sibling to the canonical set source in the owner's `.github` repository.
 
 ## Publish and verify
 
@@ -32,7 +33,7 @@ After explicit owner approval, tag `vX.Y.Z` matching `package.json` and push the
 The verification job tests the tagged source, checks generated files, packs once and smoke-installs that exact tarball.
 The publish job alone receives identity-token permission, runs in the `release` environment (waiting for the reviewer) and publishes the downloaded tarball with provenance.
 It uses Node 24 and exact npm 12.2.0 with no stored registry token.
-When the version is already on the registry (the hand-published 0.1.0), the publish step reports it and exits without publishing, so tagging `v0.1.0` after step 5 records the release without a second publish.
+When the version is already on the registry (the hand-published 0.1.0), the publish step reports it and exits without publishing, so tagging `v0.1.0` after step 4 records the release without a second publish.
 
 Every workflow action is pinned to a full commit SHA, including `actions/setup-python` at v7.1.0.
 The pinned workflow linter versions and digest were supplied by the template; their current upstream status is UNVERIFIED in this build.
