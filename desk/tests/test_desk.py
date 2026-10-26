@@ -902,3 +902,33 @@ def test_open_timeout_is_reported_as_itself_not_as_a_missing_window(monkeypatch,
     monkeypatch.setattr(resolver.subprocess, "run", slow_open)
     with pytest.raises(resolver.DeskError, match="open timed out"):
         resolver.resolve("com.apple.calculator")
+
+
+def test_driver_started_by_desk_is_stopped_when_its_lease_cannot_be_recorded(monkeypatch, tmp_path):
+    resolver = _resolver(monkeypatch, tmp_path)
+    import _lease
+    stops = []
+    answers = [False, True]
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: answers.pop(0))
+    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
+    monkeypatch.setattr(resolver, "driver_command", lambda command, timeout=5: stops.append(command))
+    monkeypatch.setattr(_lease, "record_driver", lambda launched: (_ for _ in ()).throw(OSError("lease directory unusable")))
+    with pytest.raises(resolver.DeskError, match="cannot record a lease"):
+        resolver.ensure_driver()
+    assert stops == ["stop"]
+
+
+def test_driver_started_by_desk_is_leased_for_this_session(monkeypatch, tmp_path):
+    resolver = _resolver(monkeypatch, tmp_path)
+    import _lease
+    seen = []
+    answers = [False, True]
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: answers.pop(0))
+    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
+    monkeypatch.setattr(_lease, "record_driver", lambda launched: seen.append(launched))
+    resolver.ensure_driver()
+    assert len(seen) == 1 and seen[0] <= time.time()
+    # A daemon that was already running is never leased.
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: True)
+    resolver.ensure_driver()
+    assert len(seen) == 1

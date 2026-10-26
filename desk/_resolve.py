@@ -93,12 +93,18 @@ def driver_status(timeout=5):
 
 
 def record_driver_lease(launched):
-    """Record a lease for the daemon this call started, so cleanup can prove it owns it."""
+    """Record a lease for the daemon this call started, so cleanup can prove it owns it.
+
+    A daemon that cannot be tracked is stopped again: nothing may keep running without an owner on record."""
     try:
         from _lease import record_driver
         record_driver(launched)
     except Exception:
-        pass  # a missing lease only means cleanup leaves the daemon alone
+        try:
+            driver_command("stop")
+        except DeskError:
+            pass
+        raise DeskError("cannot record a lease for the cua-driver daemon this call started; it was stopped") from None
 
 
 def ensure_driver():
