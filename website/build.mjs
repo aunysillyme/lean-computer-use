@@ -8,6 +8,7 @@ import { content } from './content.mjs';
 
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const repository = 'https://github.com/aunysillyme/lean-computer-use';
+import { checkCopyPins } from './check.mjs';
 import { assets, media, fontStylesheet, csp } from './resources.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const json = (root, file) => JSON.parse(read(root, file));
@@ -229,7 +230,7 @@ function landingBody(root, facts) {
   const release = readRelease(root, facts.version);
   const faq = facts.faq.map(row => `<details><summary data-faq-question>${escape(row.question)}</summary><p data-faq-answer>${renderMarkdown(row.answerMarkdown, { source: 'README.md' }).replace(/^<p>|<\/p>$/g, '')}</p></details>`).join('\n');
   return `<div class="crumb"><a href="https://aunysillyme.dev/">Home</a><span>/</span><b>${escape(facts.name)}</b></div>
-<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1>${escape(content.headline)}<br><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroLede)}</p><div class="install"><span class="dollar" aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}" title="${escape(content.install.copy)}">⧉</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary" href="#quickstart">Get started ↓</a><a href="${repository}">Explore the source ↗</a></div></div>${flow(facts)}</section>
+<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1>${escape(content.headline)}<br><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroContext)} ${escape(content.headlineSource)}</p><div class="install"><span class="dollar" aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}" title="${escape(content.install.copy)}">⧉</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary" href="#quickstart">Get started ↓</a><a href="${repository}">Explore the source ↗</a></div></div>${flow(facts)}</section>
 <div class="trust">${content.chips.map(chip => `<span>${escape(chip)}</span>`).join('')}</div>
 ${heading(content.sections.trailer, 'trailer', `<video autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="/assets/trailer-poster.jpg" aria-label="Lean-computer-use trailer" aria-describedby="trailer-note"><source src="/assets/trailer.webm" type="video/webm"><source src="/assets/trailer.mp4" type="video/mp4">Your browser does not support embedded video. <a href="/assets/trailer.mp4">Watch the trailer ↗</a></video><div class="trailer-caption"><p class="note" id="trailer-note">A quick look at lean-computer-use. Silent video.</p><button type="button" class="trailer-toggle" aria-pressed="false" aria-label="Play trailer">Play trailer</button></div>`, 'APP ACTIONS & EVIDENCE', 'trailer')}
 ${heading(content.columnsTitle, 'how-it-works', `<div class="three">${content.columns.map((column, index) => `<article><div class="feature-num">${String(index + 1).padStart(2, '0')} / ${escape(column.label)}</div><h3>${escape(column.title)}</h3><p>${escape(column.text)}</p><a href="${escape(column.href)}">${escape(column.link)} ↗</a></article>`).join('')}</div>`, content.sectionLabels.how)}
@@ -364,6 +365,8 @@ export function buildSite({ root = fileURLToPath(new URL('..', import.meta.url))
   requireValue(/^[a-f0-9]{40}$/i.test(commit), 'Expected a full source commit SHA');
   const documents = pages.map(page => ({ page, html: template(root, page, page.route === '/' ? landingBody(root, facts) : documentBody(page, docsBody(root, page, facts)), facts, live, commit) }));
   validateRendered(documents, facts);
+  const pinFailures = checkCopyPins({ root, html: documents[0].html });
+  requireValue(pinFailures.length === 0, pinFailures.join('\n'));
   for (const asset of assets) requireValue(existsSync(join(root, 'website/assets', asset)), `Asset missing${live && media.includes(asset) ? " for live build" : ""}: website/assets/${asset}`);
   const output = resolve(outDir);
   requireValue(output !== resolve(root) && output !== resolve(root, 'website') && !resolve(root).startsWith(`${output}/`), 'Output must be a separate build directory');

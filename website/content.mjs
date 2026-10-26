@@ -3,7 +3,8 @@ export const content = {
   eyebrow: 'COMPUTER USE FOR AI AGENTS ON MAC',
   headline: 'Let your AI use Mac apps.',
   headlineAccent: 'In the background.',
-  heroLede: 'Give Claude Code computer use in native apps on your Mac, in the background. Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.',
+  headlineSource: 'Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.',
+  heroContext: 'Give Claude Code computer use in native apps on your Mac, in the background.',
   chips: ['Controls native Mac apps', 'Runs in the background', 'Saved reads', 'Cleanup proof', 'MIT licensed'],
   heroActions: [{ label: 'Get started', href: '/#quickstart' }, { label: 'Explore the source', href: 'https://github.com/aunysillyme/lean-computer-use' }],
   columns: [
@@ -19,9 +20,9 @@ export const content = {
     copySuccess: 'Install command copied.',
     copyFallback: 'Select the install command to copy it.',
     steps: [
-      { title: 'Run the installer.', text: 'Review the setup guidance for your AI agent.' },
-      { title: 'Check the Mac setup with doctor.', text: 'Review the requirements and permission guidance.' },
-      { title: 'Give the agent a bounded app task.', text: 'Name the done signal, preserve the saved read and return cleanup proof.' },
+      { title: 'Run the installer.', text: 'Prepare the upstream driver and run npx lean-computer-use doctor.' },
+      { title: 'Start a fresh Claude Code session.', text: 'Ask it to use the lean-computer-use skill.' },
+      { title: 'Give the AI a bounded app task.', text: 'Name its done signal and check the saved result and cleanup.' },
     ],
     commands: ['npx lean-computer-use', 'npx lean-computer-use doctor', 'npx lean-computer-use install --with-hooks'],
     note: 'Preview the plan first with --dry-run.',
@@ -80,6 +81,7 @@ export const content = {
   diagram: { title: 'ONE BOUNDED APP TASK', steps: ['Frame: app, actions and done check', 'Run: background actions in a fresh runner', 'Read: filtered view and full saved evidence', 'Verify: saved result and cleanup proof'], note: 'The main session frames the task and checks the saved evidence.' },
   breadcrumbs: { home: 'Home', section: 'Docs', label: 'Breadcrumb' },
   requirements: [
+    { title: 'Claude Code', text: 'The supported host discovers the installed skill and runner in a fresh session.' },
     { title: 'macOS', text: 'Native app control runs on macOS.' },
     { title: 'Python 3', text: 'The desk tools use Python.' },
     { title: 'Node 22 or newer', text: 'The installer, doctor and transcript measurement run on Node.js.' },

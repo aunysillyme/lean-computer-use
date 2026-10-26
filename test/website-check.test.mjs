@@ -291,3 +291,8 @@ red('font preconnect cannot point at another host', dir => append(dir, doc, '<li
 red('remote trailer poster is refused', dir => append(dir, doc, '<video poster="https://example.org/poster.jpg"></video>'), /external resource: video/);
 red('media outside the assets directory is refused', dir => append(dir, doc, '<video src="/index.html"></video>'), /media must use local/);
 red('font policy cannot permit other hosts', dir => edit(dir, doc, html => html.replace("font-src https://fonts.gstatic.com", "font-src https://example.org")), /resource CSP differs/);
+
+red('pinned install command cannot drift', dir => edit(dir, 'index.html', html => html.replace('<code id="install-command">npx lean-computer-use</code>', '<code id="install-command">npx other-package</code>')), /pinned install command/);
+red('pinned README lead must remain in the hero', dir => edit(dir, 'index.html', html => html.replace('Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.', 'A changed product lead.')), /pinned README lead/);
+red('pinned headline cannot drift', dir => edit(dir, 'index.html', html => html.replace('Let your AI use Mac apps.', 'A changed headline.')), /pinned headline/);
+red('pinned meta description cannot drift', dir => edit(dir, 'index.html', html => html.replace(/(<meta name="description" content=")[^"]+/, '$1A changed description.')), /pinned meta description/);

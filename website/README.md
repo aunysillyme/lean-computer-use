@@ -39,6 +39,10 @@ It reads only the commit variable named above; it writes no environment values o
 An optional `website/release.json` with a version and `"verified": true` supplies the displayed release.
 An absent file or `"verified": false` leaves the package version labelled "not released yet".
 The builder reads no network sources.
+`pins.json` records the reviewed GitHub About text, README lead, install command,
+package description and owner-selected headline. The builder and checker reject
+source or rendered-page drift from these pins. Refresh pins only after reviewing
+the canonical GitHub and npm copy.
 
 ## Writes
 

@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { isIP } from 'node:net';
+import { content } from './content.mjs';
 import { pages } from './pages.mjs';
 import { loadFacts, buildJsonLd, buildFaqJsonLd, visibleText, validateKeywords,
   validateToolHeading, commandEvidence, validateCommand } from './facts.mjs';
@@ -90,6 +91,37 @@ const properties = Object.fromEntries(Object.entries({
   BreadcrumbList: ['itemListElement'], ListItem: ['position', 'name', 'item'],
 }).map(([type, keys]) => [type, new Set([...commonProperties, ...keys])]));
 
+// Pins are a reviewed snapshot. Network changes never rewrite them during a build.
+export function checkCopyPins({ root = rootDir, html } = {}) {
+  const failures = [];
+  const check = (ok, label) => { if (!ok) failures.push(`pinned ${label} differs from snapshot`); };
+  try {
+    const pins = JSON.parse(read(root, 'website/pins.json'));
+    for (const key of ['about', 'readmeLead', 'installCommand', 'packageDescription', 'headline', 'headlineAccent']) check(typeof pins[key] === 'string' && pins[key].trim(), key);
+    const pkg = JSON.parse(read(root, 'package.json'));
+    const readme = read(root, 'README.md');
+    const about = read(root, 'REPO_SETTINGS.md').split('\n').find(line => /^\| About description \|/.test(line))?.split('|')[2]?.trim();
+    const lead = readme.match(/^\*\*([^\n]+)\*\*$/m)?.[1];
+    const install = readme.match(/```sh\n([^\n]+)/)?.[1];
+    check(about === pins.about && pkg.description === pins.about, 'About text');
+    check(pkg.description === pins.packageDescription, 'package description');
+    check(lead === pins.readmeLead && content.headlineSource === pins.readmeLead, 'README lead source');
+    check(install === pins.installCommand && content.install.command === pins.installCommand, 'install command source');
+    if (html) {
+      const nodes = parseHtml(html);
+      const hero = nodes.find(node => node.name === 'section' && (node.attrs.class || '').split(/\s+/).includes('hero'));
+      check(hero && text(hero.inner).includes(pins.readmeLead), 'README lead');
+      const h1 = nodes.filter(node => node.name === 'h1');
+      check(h1.length === 1 && text(h1[0].inner) === `${pins.headline} ${pins.headlineAccent}`, 'headline');
+      const code = nodes.find(node => node.name === 'code' && node.attrs.id === 'install-command');
+      check(code && text(code.inner) === pins.installCommand, 'install command');
+      const meta = nodes.find(node => node.name === 'meta' && node.attrs.name === 'description');
+      check(meta?.attrs.content === pins.packageDescription && meta?.attrs.content === pins.about, 'meta description');
+    }
+  } catch (error) { failures.push(`pinned snapshot unavailable: ${error.message}`); }
+  return failures;
+}
+
 export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), live = false,
   now = new Date().toISOString(), termsFile = join(root, 'test/terms.private.sha256') } = {}) {
   const failures = [];
@@ -100,6 +132,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
   check(Number.isFinite(timestamp), 'clock', 'invalid --now date');
   const facts = attempt('facts', () => loadFacts(root));
   if (!facts) return failures;
+  failures.push(...checkCopyPins({ root }).map(message => `pins: ${message}`));
   const jsonUrls = new Set([...projectUrls, ...pages.map(page => origin + page.route)]);
   const collectUrls = value => {
     if (typeof value === 'string' && /^https?:\/\//i.test(value)) jsonUrls.add(value);
@@ -253,6 +286,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
       .map(node => attempt(file, () => JSON.parse(node.inner))).filter(Boolean);
     blocks.forEach(block => jsonPolicy(file, block));
     if (file === 'index.html') {
+      for (const message of checkCopyPins({ root, html })) fail(file, message);
       check(same(blocks, [buildJsonLd(facts, { live }), buildFaqJsonLd(facts)]), file, 'landing JSON-LD differs from generated facts');
       attempt(file, () => validateKeywords(facts, html));
       const hero = nodes.find(node => node.name === 'section' && (node.attrs.class || '').split(/\s+/).includes('hero'))?.inner || '';

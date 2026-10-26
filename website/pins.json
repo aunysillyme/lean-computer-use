@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-10-26",
+  "about": "Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command",
+  "readmeLead": "Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.",
+  "installCommand": "npx lean-computer-use",
+  "packageDescription": "Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command",
+  "headline": "Let your AI use Mac apps.",
+  "headlineAccent": "In the background."
+}

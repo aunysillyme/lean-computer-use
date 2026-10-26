@@ -36,7 +36,7 @@ function files(dir, prefix = '') {
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'website-build-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE'];
+  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs'];
   inputs.push(...JSON.parse(read(root, 'website/tools.json')).flatMap(tool => tool.source));
   for (const folder of ['docs', 'skills', 'desk', 'hooks', 'agents', 'briefs', 'proof', 'website']) {
     inputs.push(...files(join(root, folder)).filter(file => !file.split('/').some(part =>
@@ -322,4 +322,28 @@ test('RED live build requires each local trailer file before replacing output', 
     writeFileSync(file, bytes);
   }
   built(dir, { live: true });
+});
+
+test('RED pinned source snapshots reject coordinated metadata or README drift', t => {
+  const dir = fixture(t);
+  const originals = Object.fromEntries(['package.json', 'REPO_SETTINGS.md', 'README.md', 'website/content.mjs'].map(file => [file, read(dir, file)]));
+  const cases = [
+    ['About and package', () => {
+      const pkg = JSON.parse(originals['package.json']);
+      const description = pkg.description;
+      pkg.description += '!';
+      write(dir, 'package.json', JSON.stringify(pkg));
+      write(dir, 'REPO_SETTINGS.md', originals['REPO_SETTINGS.md'].replace(description, pkg.description));
+    }],
+    ['README lead', () => write(dir, 'README.md', originals['README.md'].replace('chain actions, read once with a filter, and verify cleanup.', 'chain other actions and verify cleanup.'))],
+    ['headline source', () => write(dir, 'website/content.mjs', originals['website/content.mjs'].replace("headlineSource: 'Background", "headlineSource: 'Changed background"))],
+  ];
+  for (const [name, mutate] of cases) {
+    mutate();
+    const result = build(dir);
+    assert.equal(result.status, 1, name);
+    assert.match(result.stderr, /pinned/, name);
+    for (const [file, value] of Object.entries(originals)) write(dir, file, value);
+    built(dir);
+  }
 });
