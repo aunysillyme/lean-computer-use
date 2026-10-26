@@ -109,6 +109,8 @@ function red(name, mutate, diagnostic, { live = false, options = {} } = {}) {
 }
 
 red('two H1s', dir => append(dir, doc, '<h1>Extra</h1>'), /expected one H1/);
+red('card trace without aria-hidden', dir => append(dir, doc, '<div class="card"><svg class="card-trace" focusable="false"><rect/></svg></div>'), /card trace must have aria-hidden="true"/);
+red('card trace that can receive focus', dir => append(dir, doc, '<div class="card"><svg class="card-trace" aria-hidden="true" focusable="true"><rect/></svg></div>'), /card trace must have focusable="false"/);
 red('title over 60 characters', dir => edit(dir, doc, html => html.replace(/<title>[^]*?<\/title>/, `<title>${'x'.repeat(61)}</title>`)), /title must have/);
 red('changed landing meta description', dir => edit(dir, 'index.html', html => html.replace(/(<meta name="description" content=")[^"]+/, '$1Changed')), /landing description differs/);
 red('wrong canonical', dir => edit(dir, doc, html => html.replace('rel="canonical" href="https://lean-computer-use.aunysillyme.dev/docs/overview/', 'rel="canonical" href="https://example.org/')), /wrong canonical/);

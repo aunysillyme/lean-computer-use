@@ -13,3 +13,23 @@
 /* Product content uses the reference shell and component classes. */
 .hero h1 br{display:block}.document-title{font:500 50px/1.15 var(--serif);color:var(--white);margin:0 0 28px}.code pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.code code{font:inherit}.table-scroll{max-width:100%;overflow:auto}.proof-table{border-collapse:collapse;width:100%;font-size:10px}.proof-table th,.proof-table td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.proof-table th{font-weight:400;color:var(--white)}.proof-table thead{background:#112017}.trailer-caption{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px}.trailer-caption .note{margin:0}.trailer-toggle{color:var(--green);background:#102319;border:1px solid #3d7750;padding:6px 11px;font-size:10px;white-space:nowrap}.route-core.selected{border-color:#4de57c;background:#143321;color:#b8ffcf}.requirements{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.requirements h3{font-size:12px;color:var(--white);font-weight:500;margin:0 0 8px}.requirements p{font-size:10px;color:var(--muted);margin:0}.faq details{border-bottom:1px solid var(--line);padding:14px 0;font-size:11px}.faq summary{color:var(--white);cursor:pointer}.faq p{font-size:10px}.faq code{overflow-wrap:anywhere}.document .source-section{margin-bottom:36px}summary:focus-visible{outline:2px solid var(--green);outline-offset:4px}
 @media(max-width:600px){.requirements{grid-template-columns:1fr}.document-title{font-size:39px}.trailer-caption{align-items:flex-start}.hero h1{font-size:64px}}
+/* Border ray from https://aunysillyme.dev/. Shared insets keep text clear. */
+.card{--card-inset:18px;position:relative;padding:var(--card-inset);min-width:0;border:1px solid var(--line);background-color:var(--panel)}
+.hero-actions{flex-wrap:wrap;gap:12px}
+.hero-actions .card,.task-tabs .card,.copy.card{--card-inset:8px;padding:var(--card-inset);display:inline-block}
+.copy.card{flex-shrink:0}
+.route-core.card,.route-options .card{--card-inset:12px;padding:var(--card-inset)}
+.tool.card{margin:24px 0}
+.card-trace{position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);overflow:visible;pointer-events:none;opacity:0;fill:none;stroke:var(--green);stroke-width:2.5;filter:drop-shadow(0 0 4px var(--green)) drop-shadow(0 0 9px var(--green));z-index:2}
+.card-trace rect{width:calc(100% - 1px);height:calc(100% - 1px)}
+.card-trace .ray-tail{stroke-dasharray:6 94;opacity:.45}
+.card-trace .ray-mid{stroke-dasharray:3 97;opacity:.85}
+.card-trace .ray-tip{stroke-dasharray:1 99;stroke:#D6FFE4;stroke-width:3}
+.card:hover .card-trace,.card:focus-within .card-trace{opacity:1}
+@keyframes card-ray{to{stroke-dashoffset:100}}
+.card:hover .card-trace rect,.card:focus-within .card-trace rect{animation:card-ray 5s linear infinite}
+/* Nested controls light up when they receive hover or focus. */
+.card:not(:hover):not(:focus-within)>.card-trace{opacity:0}
+.card:not(:hover):not(:focus-within)>.card-trace rect{animation:none}
+@media (prefers-reduced-motion: reduce){.card-trace rect{animation:none!important}.card:hover,.card:focus-within{border-color:var(--green)}.card .card-trace{display:none}}
+@media (forced-colors: active){.card .card-trace{display:none}}

@@ -225,6 +225,10 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
       check(meta('og:image').length === 1 && meta('og:image')[0].attrs.content === origin + '/assets/social-preview.png', file, 'wrong social preview');
     }
     for (const node of nodes) {
+      if (node.name === 'svg' && (node.attrs.class || '').split(/\s+/).includes('card-trace')) {
+        check(node.attrs['aria-hidden'] === 'true', file, 'card trace must have aria-hidden="true"');
+        check(node.attrs.focusable === 'false' && !own(node.attrs, 'tabindex'), file, 'card trace must have focusable="false" and no tabindex');
+      }
       for (const [attr, value] of Object.entries(node.attrs)) {
         if (!/(?:https?:)?\/\//i.test(value)) continue;
         const rels = (node.attrs.rel || '').split(/\s+/);

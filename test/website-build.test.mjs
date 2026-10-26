@@ -68,6 +68,62 @@ function htmlPages(dir) {
   return routes.map(route => [route, read(dir, pageFile(route))]);
 }
 
+const cardTrace = '<svg class="card-trace" aria-hidden="true" focusable="false"><rect class="ray-tail" x=".5" y=".5" pathLength="100"/><rect class="ray-mid" x=".5" y=".5" pathLength="100"/><rect class="ray-tip" x=".5" y=".5" pathLength="100"/></svg>';
+function traced(html, pattern, count) {
+  const matches = [...html.matchAll(pattern)];
+  assert.equal(matches.length, count, String(pattern));
+  for (const match of matches) {
+    assert.match(match[0], /class="[^"]*\bcard\b[^"]*"/);
+    assert.ok(html.startsWith(cardTrace, match.index + match[0].length), match[0]);
+  }
+}
+
+test('landing cards and action buttons start with a decorative border ray', t => {
+  const html = read(built(fixture(t)), 'index.html');
+  for (const [name, count] of [['routing', 1], ['doc-link', 4], ['install', 1], ['copy', 1], ['code', 1], ['proof-card', 1], ['route-core', 1]]) {
+    traced(html, new RegExp(`<[^/!][^>]*class="(?:[^"]* )?${name}(?: [^"]*)?"[^>]*>`, 'g'), count);
+  }
+  traced(html, /<article\b[^>]*>/g, 8);
+  traced(html, /<button\b[^>]*data-task="[^"]+"[^>]*>/g, 4);
+  const actions = [...html.matchAll(/<div class="hero-actions">([^]*?)<\/div>/g)];
+  assert.equal(actions.length, 2);
+  for (const action of actions) traced(action[1], /<a\b[^>]*>/g, 2);
+  assert.doesNotMatch(html.match(/<aside\b[^]*?<\/aside>/)[0], /card-trace/);
+  assert.doesNotMatch(html.match(/<header\b[^]*?<\/header>/)[0], /card-trace/);
+});
+
+test('docs tool and proof cards have rays while prose code blocks keep their markup', t => {
+  const output = built(fixture(t));
+  const tools = JSON.parse(read(root, 'website/tools.json'));
+  let count = 0;
+  for (const [, html] of htmlPages(output).slice(1)) {
+    const entries = [...html.matchAll(/<article data-tool="[^"]+"[^>]*>/g)];
+    traced(html, /<article data-tool="[^"]+"[^>]*>/g, entries.length);
+    count += entries.length;
+    for (const block of html.matchAll(/<pre\b[^>]*>([^]*?)<\/pre>/g)) assert.doesNotMatch(block[1], /card-trace/);
+  }
+  assert.equal(count, tools.length);
+  traced(read(output, 'docs/proof/index.html'), /<div class="[^"]*\bproof-card\b[^"]*"[^>]*>/g, 1);
+});
+
+test('border ray styles cover hover, keyboard focus, layers and shared text insets', t => {
+  const css = read(built(fixture(t)), 'assets/site.css');
+  assert.match(css, /@keyframes card-ray\s*\{to\{stroke-dashoffset:100\}\}/);
+  assert.match(css, /\.card:hover \.card-trace,\.card:focus-within \.card-trace\{opacity:1\}/);
+  assert.match(css, /\.card:hover \.card-trace rect,\.card:focus-within \.card-trace rect\{animation:card-ray 5s linear infinite\}/);
+  assert.match(css, /\.card\{[^}]*position:relative/);
+  assert.match(css, /\.card\{[^}]*padding:var\(--card-inset\)/);
+  assert.match(css, /\.card-trace\{[^}]*pointer-events:none/);
+  assert.match(css, /\.card-trace\{[^}]*z-index:2/);
+  assert.match(css, /stroke:var\(--green\)/);
+});
+
+test('border ray respects reduced motion and forced colors', t => {
+  const css = read(built(fixture(t)), 'assets/site.css');
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)\{\.card-trace rect\{animation:none!important\}/);
+  assert.match(css, /@media\s*\(forced-colors:\s*active\)\{\.card \.card-trace\{display:none\}/);
+});
+
 function modePolicy(dir, live) {
   const allFiles = files(dir);
   const pages = htmlPages(dir);
