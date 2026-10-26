@@ -80,14 +80,22 @@ function traced(html, pattern, count) {
 
 test('landing cards and action buttons start with a decorative border ray', t => {
   const html = read(built(fixture(t)), 'index.html');
-  for (const [name, count] of [['routing', 1], ['doc-link', 4], ['install', 1], ['copy', 1], ['code', 1], ['proof-card', 1], ['route-core', 1]]) {
+  for (const [name, count] of [['routing', 1], ['doc-link', 4], ['install', 1], ['code', 1], ['proof-card', 1]]) {
     traced(html, new RegExp(`<[^/!][^>]*class="(?:[^"]* )?${name}(?: [^"]*)?"[^>]*>`, 'g'), count);
   }
   traced(html, /<article\b[^>]*>/g, 8);
-  traced(html, /<button\b[^>]*data-task="[^"]+"[^>]*>/g, 4);
+  const small = [
+    ...html.matchAll(/<button\b[^>]*data-task="[^"]+"[^>]*>/g),
+    ...html.matchAll(/<[^>]*class="[^"]*\b(?:copy|route-core|trailer-toggle)\b[^"]*"[^>]*>/g),
+    ...html.matchAll(/<div class="card" data-role="[a-z]+">/g),
+  ];
+  assert.equal(small.length, 11, 'inner controls and nodes found');
+  for (const match of small) assert.ok(!html.startsWith(cardTrace, match.index + match[0].length), `${match[0]} carries no ray`);
   const actions = [...html.matchAll(/<div class="hero-actions">([^]*?)<\/div>/g)];
   assert.equal(actions.length, 2);
-  for (const action of actions) traced(action[1], /<a\b[^>]*>/g, 2);
+  for (const action of actions) assert.doesNotMatch(action[1], /card-trace/);
+  const toggle = html.match(/<button[^>]*trailer-toggle[^]*?<\/button>/)[0];
+  assert.ok(toggle.includes('icon-pause') && toggle.includes('icon-play') && toggle.includes('data-button-label'), 'small icon pause button with hidden label');
   assert.doesNotMatch(html.match(/<aside\b[^]*?<\/aside>/)[0], /card-trace/);
   assert.doesNotMatch(html.match(/<header\b[^]*?<\/header>/)[0], /card-trace/);
 });
