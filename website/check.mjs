@@ -12,7 +12,7 @@ const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const pageFile = route => `${route.slice(1)}index.html`;
 const twinFile = route => `${route.slice(1)}index.md`;
-const assets = ['site.css', 'site.js', 'poster.png', 'social-preview.svg', 'social-preview.png'];
+import { assets, fontLink, csp } from './resources.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const decode = text => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, entity => {
   const named = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
@@ -167,6 +167,8 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
     check(descriptions.length === 1 && descriptions[0].attrs.content?.trim() && descriptions[0].attrs.content.length <= 160, file, 'description must have 1 to 160 characters');
     if (file === 'index.html') check(descriptions[0]?.attrs.content === facts.description, file, 'landing description differs from package');
     check(links('canonical').length === 1 && links('canonical')[0].attrs.href === origin + route, file, 'wrong canonical');
+    const policies = tags('meta').filter(node => node.attrs['http-equiv']?.toLowerCase() === 'content-security-policy');
+    check(policies.length === 1 && policies[0].attrs.content === csp, file, 'resource CSP differs from policy');
     const ids = nodes.filter(node => own(node.attrs, 'id')).map(node => node.attrs.id);
     check(new Set(ids).size === ids.length, file, 'duplicate id');
     const sidebar = tags('aside').filter(node => (node.attrs.class || '').split(/\s+/).includes('sidebar'));
@@ -193,7 +195,9 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
       for (const [attr, value] of Object.entries(node.attrs)) {
         if (!/(?:https?:)?\/\//i.test(value)) continue;
         const rels = (node.attrs.rel || '').split(/\s+/);
-        const allowed = node.name === 'a' && attr === 'href'
+        const allowed = fontLink(node) && attr === 'href'
+          || node.name === 'meta' && attr === 'content' && node.attrs['http-equiv']?.toLowerCase() === 'content-security-policy' && value === csp
+          || node.name === 'a' && attr === 'href'
           || node.name === 'link' && attr === 'href' && rels.some(rel => ['canonical', 'describedby', 'alternate'].includes(rel))
           || node.name === 'meta' && attr === 'content' && /^(?:og:|twitter:)/.test(node.attrs.property || node.attrs.name || '');
         // Local resources also use absolute site URLs.
@@ -209,11 +213,14 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
           if (url.origin === origin) resolveLink(file, value, { anchor: node.name !== 'link' });
           else {
             const rel = (node.attrs.rel || '').split(/\s+/);
-            const permitted = attr === 'href' && (node.name === 'a' || node.name === 'link' && rel.some(value => ['canonical', 'describedby', 'alternate'].includes(value)));
+            const permitted = fontLink(node) && attr === 'href' || attr === 'href' && (node.name === 'a' || node.name === 'link' && rel.some(value => ['canonical', 'describedby', 'alternate'].includes(value)));
             check(permitted && ['http:', 'https:'].includes(url.protocol), file, `external resource: ${node.name}[${attr}]`);
           }
           if (node.name === 'a' && attr === 'href') check(safeAnchor(url), file, 'unsafe external anchor');
         }
+      }
+      if (['video', 'source'].includes(node.name)) {
+        for (const attr of ['src', 'poster']) if (own(node.attrs, attr)) check(/^\/assets\/[^/]+\.(?:mp4|webm|jpg)$/.test(node.attrs[attr]), file, `media must use local /assets/: ${node.name}[${attr}]`);
       }
       if (node.name === 'article' && own(node.attrs, 'data-tool')) {
         const tool = facts.tools.find(tool => tool.id === node.attrs['data-tool']);
@@ -293,6 +300,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
     check(!/\bAU[N]-\d+/.test(privateText), file, 'private issue id');
     check(!/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(privateText), file, 'email address');
     check(!/\bVaults?[\/\\]|obs[i]dian(?:-tc)?:\/\//i.test(privateText), file, 'vault path');
+    check(!value.includes(String.fromCharCode(0x2014)), file, 'em dash');
     check(!/\bgtag\s*\(|googletagmanager|google-analytics|\bdataLayer\b|analytics\.(?:track|identify|page)\s*\(/i.test(value), file, 'analytics or tag-manager snippet');
     if (/\.(?:html|css|svg|js)$/.test(file)) {
       for (const match of value.matchAll(/(?:url\(\s*["']?|@import\s+["'])([^\s'";)]+)/gi)) {

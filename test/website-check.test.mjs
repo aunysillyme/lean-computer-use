@@ -169,7 +169,7 @@ red('tool entry shown twice', dir => {
 }, /tool must appear exactly once: runner \(2\)/);
 red('tool entry shown on no page', dir => edit(dir, 'docs/how-it-works/index.html', html => html.replace(/<article data-tool="runner"[^]*?<\/article>/, '')), /tool must appear exactly once: runner \(0\)/);
 red('tool heading without primary phrase', dir => edit(dir, 'docs/how-it-works/index.html', html => html.replace(/(<article data-tool="runner"[^]*?<h3\b[^>]*>)[^]*?(<\/h3>)/, '$1Other heading$2')), /Heading missing primary phrase for runner/);
-red('forbidden H1 headline', dir => edit(dir, doc, html => html.replace('<h1 id="page-title">Overview</h1>', '<h1 id="page-title">Your agent keeps working</h1>')), /forbidden headline/);
+red('forbidden H1 headline', dir => edit(dir, doc, html => html.replace('<h1 class="document-title" id="page-title">Overview</h1>', '<h1 id="page-title">Your agent keeps working</h1>')), /forbidden headline/);
 red('hero missing background', dir => edit(dir, 'index.html', html => html.replace(/(<section class="hero"[^]*?<\/section>)/, hero => hero.replaceAll('background', 'foreground'))), /hero missing background/);
 red('email address', dir => append(dir, doc, '<p>person@example.org</p>'), /email address/);
 red('private issue id', dir => append(dir, doc, `<p>AU${'N'}-123</p>`), /private issue id/);
@@ -200,10 +200,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 8);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 11);
-  assert.equal(expectedFiles().length, 17);
-  assert.equal(expectedFiles(true).length, 29);
+  assert.equal(expectedFiles().length, pages.length + 14);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 17);
+  assert.equal(expectedFiles().length, 23);
+  assert.equal(expectedFiles(true).length, 35);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 
@@ -284,3 +284,10 @@ test('RED every allowed JSON-LD type rejects an invented property', t => {
     assert.deepEqual(run(dir), []);
   }
 });
+
+red('font host cannot supply a script', dir => append(dir, doc, '<script src="https://fonts.googleapis.com/test.js"></script>'), /external resource: script/);
+red('font stylesheet must match the selected families', dir => edit(dir, doc, html => html.replace('family=Cormorant', 'family=Other')), /external resource: link/);
+red('font preconnect cannot point at another host', dir => append(dir, doc, '<link rel="preconnect" href="https://example.org">'), /external resource: link/);
+red('remote trailer poster is refused', dir => append(dir, doc, '<video poster="https://example.org/poster.jpg"></video>'), /external resource: video/);
+red('media outside the assets directory is refused', dir => append(dir, doc, '<video src="/index.html"></video>'), /media must use local/);
+red('font policy cannot permit other hosts', dir => edit(dir, doc, html => html.replace("font-src https://fonts.gstatic.com", "font-src https://example.org")), /resource CSP differs/);

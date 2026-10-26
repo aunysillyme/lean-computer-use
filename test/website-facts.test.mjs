@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadFacts, buildJsonLd, buildFaqJsonLd, validateMock, validateTools, validateKeywords, visibleText, validateToolHeading, keywordCounts } from '../website/facts.mjs';
 
+import { fontStylesheet } from '../website/resources.mjs';
 import { buildSite } from '../website/build.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -211,22 +212,24 @@ test('tool blocks cover every setup row, eight methods and installer removal wit
 });
 
 test('mock sections, README introduction and process, requirements, links and credits are present', () => {
-  const positions = ['class="hero"', 'id="how-it-works"', 'id="trailer"', 'id="quickstart"',
-    'id="reference"', 'id="requirements"', 'id="questions"', 'id="set"', 'id="proof"', 'id="releases"', '<footer'].map(marker => html.indexOf(marker));
+  const positions = ['class="hero"', 'id="trailer"', 'id="how-it-works"', 'id="quickstart"',
+    'id="reference"', 'id="proof"', 'id="releases"', 'id="requirements"', 'id="questions"', 'id="set"', '<footer'].map(marker => html.indexOf(marker));
   assert.ok(positions.every((value, index) => value >= 0 && (!index || value > positions[index - 1])));
   for (const line of facts.lines) assert.ok(text(documents).includes(line), line);
   for (const row of facts.process) for (const cell of row) assert.ok(text(documents).includes(cell), cell);
   for (const required of ['Python 3', 'Node 22 or newer', 'cua-driver', 'npx lean-computer-use uninstall',
     facts.repository, facts.npm, 'https://github.com/aunysillyme/lean-browser-use', 'https://github.com/trycua/cua']) assert.ok(html.includes(required), required);
-  assert.match(html, /Trailer/);
-  assert.doesNotMatch(html, /<(?:video|iframe)\b/i);
+  assert.match(html, /trailer/i);
+  assert.doesNotMatch(html, /<iframe\b/i);
+  assert.match(html, /<video autoplay muted loop playsinline preload="auto"/);
+  assert.match(html, /<source src="\/assets\/trailer.webm" type="video\/webm"/);
   const proof = html.split('<table class="proof-table">')[1].split('</table>')[0];
   assert.doesNotMatch(text(proof), /%|\b(?:ms|seconds|traffic)\b/i);
 });
 
-test('mock metadata and static responsive layout have no external resource requests', () => {
+test('mock metadata and static responsive layout allow only local assets and the pinned font stylesheet', () => {
   for (const tag of ['<meta name="robots" content="noindex">', `<link rel="canonical" href="${facts.url}">`]) assert.ok(html.includes(tag), tag);
-  for (const match of html.matchAll(/<(?:img|script|iframe|video|audio|source)\b[^>]*\bsrc="([^"]+)"|<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/gi)) assert.ok((match[1] || match[2]).startsWith('/assets/'));
+  for (const match of html.matchAll(/<(?:img|script|iframe|video|audio|source)\b[^>]*\bsrc="([^"]+)"|<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/gi)) assert.ok((match[1] || match[2]).startsWith('/assets/') || (match[1] || match[2]).replaceAll('&amp;', '&') === fontStylesheet);
   const css = read('website/assets/site.css');
   assert.match(css, /@media/);
   assert.match(css, /minmax\(0,\s*1fr\)/);

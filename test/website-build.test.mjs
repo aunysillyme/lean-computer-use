@@ -293,7 +293,8 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
     for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/'), match[1]);
     assert.match(html, /href="\/assets\/site.css"/);
     assert.match(html, /src="\/assets\/site.js"/);
-    assert.doesNotMatch(html, /<(?:video|iframe|audio)\b|\.mp4\b|googletagmanager|google-analytics/i);
+    assert.doesNotMatch(html, /<(?:iframe|audio)\b|googletagmanager|google-analytics/i);
+    for (const media of html.matchAll(/<(?:video|source)\b[^>]*?(?:src|poster)="([^"]+)"/g)) assert.ok(media[1].startsWith('/assets/'));
   }
   const landing = read(output, 'index.html');
   for (const row of proof) {
@@ -304,4 +305,21 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
   for (const asset of ['poster.png', 'social-preview.png', 'site.css', 'site.js']) assert.ok(existsSync(join(output, 'assets', asset)), asset);
   assert.deepEqual([...readFileSync(join(output, 'assets/social-preview.png')).subarray(16, 24)], [0, 0, 4, 176, 0, 0, 2, 118]);
   assert.doesNotMatch(read(output, 'assets/site.js'), /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(/);
+});
+
+test('RED live build requires each local trailer file before replacing output', t => {
+  const dir = fixture(t);
+  built(dir, { live: true });
+  const original = read(dir, 'output/index.html');
+  for (const asset of ['trailer.mp4', 'trailer.webm', 'trailer-poster.jpg']) {
+    const file = join(dir, 'website/assets', asset);
+    const bytes = readFileSync(file);
+    rmSync(file);
+    const failed = build(dir, { live: true });
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /Asset missing for live build: website\/assets\/trailer/);
+    assert.equal(read(dir, 'output/index.html'), original);
+    writeFileSync(file, bytes);
+  }
+  built(dir, { live: true });
 });

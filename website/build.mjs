@@ -8,7 +8,7 @@ import { content } from './content.mjs';
 
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const repository = 'https://github.com/aunysillyme/lean-computer-use';
-const assets = ['site.css', 'site.js', 'poster.png', 'social-preview.svg', 'social-preview.png'];
+import { assets, media, fontStylesheet, csp } from './resources.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const json = (root, file) => JSON.parse(read(root, file));
 const requireValue = (ok, message) => { if (!ok) throw Error(message); };
@@ -47,7 +47,8 @@ function loadSourceFacts(root) {
   validateTools(root, tools);
   const lead = readme.match(/^\*\*([^\n]+)\*\*$/m)?.[1];
   requireValue(lead, 'README lead missing');
-  return { name: pkg.name, description: pkg.description, version: pkg.version, lead, repository, npm: `https://www.npmjs.com/package/${pkg.name}`, url: `${origin}/`, faq, proof, tools };
+  const process = section(readme, 'The process on screen').split('\n').filter(line => /^\| (Frame|Run|Read|Verify) \|/.test(line)).map(line => line.split('|').slice(1, 3).map(cell => cell.trim()));
+  return { process, name: pkg.name, description: pkg.description, version: pkg.version, lead, repository, npm: `https://www.npmjs.com/package/${pkg.name}`, url: `${origin}/`, faq, proof, tools };
 }
 
 function validatePages(facts) {
@@ -202,34 +203,44 @@ function docsBody(root, page, facts) {
       chunks.push(proofTable(facts)); continue;
     }
     markdown = read(root, source);
+    if (source === 'README.md') markdown = markdown.replace(/<!-- set:start -->[^]*?<!-- set:end -->/, `## Part of a set\n\n${siblings(root).map(link => `[${link.name}](${link.href})`).join(' · ')}`);
     if (source === 'README.md' && page.route === '/docs/commands/') markdown = ['Install where you work', 'Add native hooks', 'Check your environment', 'Measure your own transcripts', 'Uninstall'].map(heading => section(markdown, heading)).join('\n\n');
     if (source === 'README.md' && page.route === '/docs/proof/') markdown = section(markdown, 'What is measured').replace(/<!-- proof:start -->[^]*?<!-- proof:end -->/, '');
     if (page.route === '/docs/guarantees/' && source !== 'hooks/README.md') {
       if (source === 'agents/desk-runner.md') markdown = markdown.slice(markdown.indexOf('## Boundaries'));
     }
     if (source === 'README.md') markdown = markdown.replace(/<!-- proof:start -->[^]*?<!-- proof:end -->/, '');
+    if (source === page.sources[0]) markdown = markdown.replace(/^# [^\n]+\n/, '');
     chunks.push(`<section class="source-section"><p class="source-note">${escape(content.sourceLabel)} <a href="${repository}/blob/main/${escape(source)}">${escape(source)}</a></p>\n${renderMarkdown(markdown, { source, ids })}</section>`);
   }
   return `<article class="markdown">${chunks.join('\n')}${toolBlocks(page, facts, ids)}</article>`;
 }
 
+function siblings(root) {
+  return [...section(read(root, 'README.md'), 'Part of a set').matchAll(/\[([^\]]+)\]\((https:\/\/github\.com\/aunysillyme\/[^)]+)\)/g)].map(([, name, href]) => ({ name, href }));
+}
+
+function flow(facts) {
+  return `<div class="routing" id="flow"><div class="routing-head"><span>A MAC APP TASK</span><span>ILLUSTRATIVE FLOW</span></div><div class="task-tabs" role="group" aria-label="App task process">${facts.process.map(([name, caption], index) => `<button type="button" data-caption="${escape(caption)}" data-task="${name.toLowerCase()}" aria-pressed="${index === 0}">${escape(name)}</button>`).join('')}</div><div class="task" id="task-text" aria-live="polite">${escape(facts.process[0][1])}</div><div class="stem"></div><div class="route-core selected" data-role="frame">MAIN SESSION · FRAME THE TASK</div><div class="split"></div><div class="route-options"><div data-role="run"><b>desk-runner</b>Calculator in the background</div><div data-role="read"><b>Saved read</b>Full evidence in a file</div><div data-role="verify"><b>Main session</b>Check value and cleanup</div></div><p class="route-foot">A fresh desk-runner handles one native Mac app task.<br>Example from the README: enter a value in Calculator.</p></div>`;
+}
+
 function landingBody(root, facts) {
-  const readme = read(root, 'README.md');
-  const heading = (title, id, body) => `<section class="content section" id="${id}"><div class="section-title"><h2>${escape(title)}</h2></div>${body}</section>`;
+  const heading = (title, id, body, label = '', classes = '') => `<section class="content ${classes}" id="${id}"><div class="section-title"><h2>${escape(title)}</h2>${label ? `<span>${escape(label)}</span>` : ''}</div>${body}</section>`;
   const release = readRelease(root, facts.version);
   const faq = facts.faq.map(row => `<details><summary data-faq-question>${escape(row.question)}</summary><p data-faq-answer>${renderMarkdown(row.answerMarkdown, { source: 'README.md' }).replace(/^<p>|<\/p>$/g, '')}</p></details>`).join('\n');
-  const set = section(readme, 'Part of a set').replace(/^## Part of a set\n/, '');
-  return `<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1><span class="headline-line">${escape(content.headline)}</span><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroLede)}</p><div class="install"><span aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}">${escape(content.install.copy)}</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary" href="#quickstart">${escape(content.install.title)}</a><a href="${repository}">${escape(content.footer.source)}</a></div></div><div class="routing"><p class="eyebrow">${escape(content.diagram.title)}</p>${content.diagram.steps.map(step => `<div class="route-step">${escape(step)}</div>`).join('')}<p class="note">${escape(content.diagram.note)}</p></div></section>
+  return `<div class="crumb"><a href="https://aunysillyme.dev/">Home</a><span>/</span><b>${escape(facts.name)}</b></div>
+<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1>${escape(content.headline)}<br><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroLede)}</p><div class="install"><span class="dollar" aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}" title="${escape(content.install.copy)}">⧉</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary" href="#quickstart">Get started ↓</a><a href="${repository}">Explore the source ↗</a></div></div>${flow(facts)}</section>
 <div class="trust">${content.chips.map(chip => `<span>${escape(chip)}</span>`).join('')}</div>
-${heading(content.columnsTitle, 'how-it-works', `<div class="three">${content.columns.map((column, index) => `<article><div class="feature-num">${String(index + 1).padStart(2, '0')}</div><h3>${escape(column.title)}</h3><p>${escape(column.text)}</p></article>`).join('')}</div>`)}
-${heading(content.sections.trailer, 'trailer', `<figure class="poster"><img src="/assets/poster.png" alt="${escape(content.trailer.alt)}" width="1280" height="720" loading="lazy"><figcaption>${escape(content.trailer.text)}</figcaption></figure>`)}
-${heading(content.install.title, 'quickstart', `<div class="docs-grid"><div>${content.install.steps.map((step, index) => `<div class="step"><b>${String(index + 1).padStart(2, '0')}</b><div><h3>${escape(step.title)}</h3><p>${escape(step.text)}</p></div></div>`).join('')}</div><div class="code"><pre><code>${escape(content.install.commands.join('\n\n'))}</code></pre><a href="/docs/install/">${escape(content.install.guide)}</a></div></div>`)}
-${heading(content.deeper.title, 'reference', `<div class="docs-links">${content.deeper.cards.map(card => `<a class="doc-link" href="${escape(card.href)}">${escape(card.title)}<span>${escape(card.text)}</span></a>`).join('')}</div>`)}
+${heading(content.sections.trailer, 'trailer', `<video autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="/assets/trailer-poster.jpg" aria-label="Lean-computer-use trailer" aria-describedby="trailer-note"><source src="/assets/trailer.webm" type="video/webm"><source src="/assets/trailer.mp4" type="video/mp4">Your browser does not support embedded video. <a href="/assets/trailer.mp4">Watch the trailer ↗</a></video><div class="trailer-caption"><p class="note" id="trailer-note">A quick look at lean-computer-use. Silent video.</p><button type="button" class="trailer-toggle" aria-pressed="false" aria-label="Play trailer">Play trailer</button></div>`, 'APP ACTIONS & EVIDENCE', 'trailer')}
+${heading(content.columnsTitle, 'how-it-works', `<div class="three">${content.columns.map((column, index) => `<article><div class="feature-num">${String(index + 1).padStart(2, '0')} / ${escape(column.label)}</div><h3>${escape(column.title)}</h3><p>${escape(column.text)}</p><a href="${escape(column.href)}">${escape(column.link)} ↗</a></article>`).join('')}</div>`, content.sectionLabels.how)}
+${heading(content.install.title, 'quickstart', `<div class="docs-grid"><div>${content.install.steps.map((step, index) => `<div class="step"><b>${String(index + 1).padStart(2, '0')}</b><div>${escape(step.title)}<p>${escape(step.text)}</p></div></div>`).join('')}</div><div><div class="code"><pre><code>${escape(content.install.commands.join('\n\n'))}</code></pre></div><p class="note">${escape(content.install.note)}<br><a href="/docs/install/">${escape(content.install.guide)} ↗</a></p></div></div>`, content.sectionLabels.install)}
+${heading(content.deeper.title, 'reference', `<div class="docs-links">${content.deeper.cards.map(card => `<a class="doc-link" href="${escape(card.href)}">${escape(card.title)} ↗<span>${escape(card.text)}</span></a>`).join('')}</div>`, content.sectionLabels.deeper)}
+${heading(content.sections.evidence, 'proof', `${proofTable(facts)}<div class="docs-grid"><p class="note">${escape(content.proof.intro)} ${escape(content.proof.note)}</p><div class="hero-actions"><a class="primary" href="/docs/proof/">${escape(content.proof.details)} ↗</a><a href="/docs/guarantees/">${escape(content.proof.guarantees)} ↗</a></div></div>`, content.sectionLabels.evidence)}
+${heading(content.sections.fresh, 'releases', `<div class="release"><strong>v${escape(release.version)}<small>${release.verified ? '' : escape(content.release.pending)}</small></strong><div class="release-copy"><p>${escape(content.release.text)}</p><a href="/docs/changelog/">${escape(content.release.changelog)} ↗</a></div></div>`, content.sectionLabels.fresh)}
 ${heading(content.sections.requirements, 'requirements', `<div class="requirements">${content.requirements.map(item => `<article><h3>${escape(item.title)}</h3><p>${escape(item.text)}</p></article>`).join('')}</div>`)}
 ${heading(content.sections.questions, 'questions', `<div class="faq">${faq}</div>`)}
-${heading(content.sections.set, 'set', `<div class="markdown">${renderMarkdown(set, { source: 'README.md' })}</div>`)}
-${heading(content.sections.evidence, 'proof', `<p class="note">${escape(content.proof.note)}</p>${proofTable(facts)}<p><a href="/docs/proof/">${escape(content.proof.details)}</a> · <a href="/docs/guarantees/">${escape(content.proof.guarantees)}</a></p>`)}
-${heading(content.sections.fresh, 'releases', `<div class="release"><strong>v${escape(release.version)}${release.verified ? '' : ` ${escape(content.release.pending)}`}</strong><a href="/docs/changelog/">${escape(content.release.changelog)}</a></div>`)}`;
+${heading(content.sections.set, 'set', `<p class="note">${siblings(root).map(link => `<a href="${escape(link.href)}">${escape(link.name)} ↗</a>`).join(' · ')}</p>`)}
+<p class="note"><a href="${repository}/blob/main/CREDITS.md">Credits</a> · <a href="https://github.com/trycua/cua">Upstream driver ↗</a></p>`;
 }
 
 function readRelease(root, version) {
@@ -240,13 +251,13 @@ function readRelease(root, version) {
   return release;
 }
 
-function sidebar(page) {
-  const nav = content.nav.map(link => {
-    const active = page.route === '/' && link.href === '#overview';
-    return `<a href="${page.route === '/' ? '' : '/'}${escape(link.href)}"${active ? ' class="active" aria-current="location"' : ''}>${escape(link.label)}</a>`;
-  }).join('\n');
-  const docs = pages.filter(item => item.route !== '/').map(item => `<a href="${item.route}"${item.route === page.route ? ' class="active" aria-current="page"' : ''}>${escape(item.h1)}</a>`).join('\n');
-  return `<p class="side-label">${escape(content.brand)}</p><nav class="side-links" aria-label="${escape(content.navLabel)}">${nav}</nav><p class="side-label">${escape(content.docsLabel)}</p><nav class="side-links" aria-label="${escape(content.docsLabel)}">${docs}</nav>`;
+function navLinks(page) {
+  return page.route === '/' ? content.nav.map(link => `<a href="${escape(link.href)}"${link.href === '#overview' ? ' class="active" aria-current="location"' : ''}>${escape(link.label)}</a>`).join('\n')
+    : pages.filter(item => item.route !== '/').map(item => `<a href="${item.route}"${item.route === page.route ? ' class="active" aria-current="page"' : ''}>${escape(item.h1)}</a>`).join('\n');
+}
+
+function sidebar(root, page) {
+  return `<p class="side-label">${page.route === '/' ? escape(content.brand.toUpperCase()) : 'DOCUMENTATION'}</p><nav class="side-links" aria-label="Documentation">${navLinks(page)}</nav><p class="side-label">THE REST OF THE SET</p><nav class="side-links" aria-label="Related repositories">${siblings(root).map(link => `<a href="${escape(link.href)}" target="_blank" rel="noopener noreferrer">${escape(link.name)} ↗</a>`).join('')}</nav><div class="side-bottom"><div>Questions or feedback?</div><a class="issue-button" href="${repository}/issues/new/choose" aria-label="File an issue for lean-computer-use on GitHub">File an issue ↗</a><span>Open source · MIT license</span></div>`;
 }
 
 function head(page, facts, live, notFound = false) {
@@ -261,7 +272,7 @@ function head(page, facts, live, notFound = false) {
   return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="${escape(csp)}">
 <title>${escape(page.title)}</title>
 <meta name="description" content="${escape(page.description)}">
 <link rel="canonical" href="${url}">
@@ -280,23 +291,31 @@ ${!live || notFound ? '<meta name="robots" content="noindex">' : `<link rel="des
 <meta name="twitter:description" content="${escape(page.description)}">
 <meta name="twitter:image" content="${origin}/assets/social-preview.png">
 <meta name="twitter:image:alt" content="${escape(content.socialAlt)}">`}
+<link rel="icon" href="/assets/avatar.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="${escape(fontStylesheet)}" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
+<script type="module" src="/assets/navigation.js"></script>
+<script type="module" src="/assets/trailer.js"></script>
 ${blocks.map(block => `<script type="application/ld+json">${JSON.stringify(block, null, 2).replace(/</g, '\\u003c')}</script>`).join('\n')}`;
 }
 
 function footer(commit) {
-  return `<footer class="bottom"><span>${escape(content.footer.text)}</span><a href="${repository}">${escape(content.footer.repository)}</a><span>${escape(content.footer.source)} <a href="${repository}/commit/${commit}">${commit.slice(0, 7)}</a></span></footer>`;
+  return `<footer class="bottom"><span>Built by <a href="https://aunysillyme.dev/">AunySillyMe</a> · ${escape(content.footer.text)}</span><a href="${repository}">${escape(content.footer.repository)} ↗</a><span>${escape(content.footer.source)} <a href="${repository}/commit/${commit}">${commit.slice(0, 7)}</a></span></footer>`;
 }
 
 function documentBody(page, body) {
-  return `<nav class="crumb" aria-label="${escape(content.breadcrumbs.label)}"><a href="/">${escape(content.breadcrumbs.home)}</a><span aria-hidden="true">/</span><a href="/docs/overview/">${escape(content.breadcrumbs.section)}</a><span aria-hidden="true">/</span><span aria-current="page">${escape(page.h1)}</span></nav><h1 id="page-title">${escape(page.h1)}</h1>${body}`;
+  const sourceNote = body.match(/<p class="source-note">[^]*?<\/p>/)?.[0] || '';
+  body = body.replace(sourceNote, '');
+  return `<nav class="crumb" aria-label="${escape(content.breadcrumbs.label)}"><a href="/">${escape(content.breadcrumbs.home)}</a><span aria-hidden="true">/</span><a href="/docs/overview/">${escape(content.breadcrumbs.section)}</a><span aria-hidden="true">/</span><span aria-current="page">${escape(page.h1)}</span></nav>${sourceNote}<h1 class="document-title" id="page-title">${escape(page.h1)}</h1>${body}`;
 }
 
 function template(root, page, body, facts, live, commit, notFound = false) {
   const file = page.route === '/' && !notFound ? 'landing.template.html' : 'doc.template.html';
-  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="/">${escape(content.brand)}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}"><a href="${repository}">${escape(content.github)}</a><a href="${facts.npm}">${escape(content.npm)}</a></nav></header>`;
-  const values = { head: head(page, facts, live, notFound), header, sidebar: sidebar(page), body, footer: footer(commit), menu: escape(content.menu), pageClass: file.startsWith('doc') ? 'document' : 'landing' };
+  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="${page.route === '/' ? 'https://aunysillyme.dev/' : '/'}"><img src="/assets/avatar.png" alt="AunySillyMe"><span>${page.route === '/' ? 'AunySillyMe.dev' : escape(content.brand)}</span>${page.route === '/' ? `<span class="slash">/</span><b>${escape(content.brand)}</b>` : ''}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}">${page.route === '/' ? `<span class="pill"><i class="dot"></i><span>v${escape(facts.version)}</span></span>` : '<a href="/">Home</a>'}<a href="${repository}">GitHub ↗</a>${page.route === '/' ? `<a href="${facts.npm}">npm ↗</a>` : ''}</nav></header>`;
+  const mobileNav = `<details class="mobile-nav"><summary>${page.route === '/' ? content.onThisPage : 'Documentation'}</summary><nav aria-label="Mobile documentation">${navLinks(page)}</nav></details>`;
+  const values = { head: head(page, facts, live, notFound), header, sidebar: sidebar(root, page), mobileNav, body, footer: footer(commit), pageClass: file.startsWith('doc') ? 'document' : 'landing' };
   return read(root, `website/${file}`).replace(/\{\{(\w+)\}\}/g, (_, key) => {
     requireValue(Object.hasOwn(values, key), `Unknown template slot: ${key}`);
     return values[key];
@@ -345,7 +364,7 @@ export function buildSite({ root = fileURLToPath(new URL('..', import.meta.url))
   requireValue(/^[a-f0-9]{40}$/i.test(commit), 'Expected a full source commit SHA');
   const documents = pages.map(page => ({ page, html: template(root, page, page.route === '/' ? landingBody(root, facts) : documentBody(page, docsBody(root, page, facts)), facts, live, commit) }));
   validateRendered(documents, facts);
-  for (const asset of assets) requireValue(existsSync(join(root, 'website/assets', asset)), `Asset missing: ${asset}`);
+  for (const asset of assets) requireValue(existsSync(join(root, 'website/assets', asset)), `Asset missing${live && media.includes(asset) ? " for live build" : ""}: website/assets/${asset}`);
   const output = resolve(outDir);
   requireValue(output !== resolve(root) && output !== resolve(root, 'website') && !resolve(root).startsWith(`${output}/`), 'Output must be a separate build directory');
   rmSync(output, { recursive: true, force: true });

@@ -4,8 +4,9 @@
 
 The builder turns repository documentation into the product page and its documentation pages.
 It keeps editable words in `content.mjs`, page routes and source assignments in `pages.mjs`,
-and page shells in the two templates. The output uses local assets and system fonts.
-The navigation script handles copying the install command, marking sections and opening the mobile menu.
+and page shells in the two templates. The output uses local assets and the reference Google Fonts stylesheet.
+Only fonts.googleapis.com and fonts.gstatic.com may supply external font resources.
+The navigation script handles copying the install command, marking sections and the mobile accordion.
 It makes no network calls. The site has no analytics.
 
 ## Trigger
@@ -24,7 +25,7 @@ renders and checks every page in memory, then replaces `website/dist/`.
 ## Dependencies
 
 Node.js as specified in `package.json`, Git for the source commit when
-`VERCEL_GIT_COMMIT_SHA` is absent, and the committed assets. The website package has no dependencies.
+`VERCEL_GIT_COMMIT_SHA` is absent, and the local assets, including the owner-supplied trailer files. The website package has no dependencies.
 The builder imports the fact helpers in `facts.mjs`; it checks source parity directly because
 the older mock validator describes the earlier single-page mock.
 To refresh `assets/social-preview.png`, render `assets/social-preview.svg` with `rsvg-convert`.
@@ -65,7 +66,7 @@ Once output writing starts, a filesystem error can leave a partial output direct
 | Commit is missing or invalid | Run from a Git checkout or supply the full commit through the build environment. |
 | Release JSON is invalid | Correct the JSON and verified version. |
 | Output cannot be written | Restore filesystem access, then rerun the builder. |
-| Golden mock differs after a commit | Review and refresh the saved default landing with the current source commit. |
+| Golden mock differs after a content change | Regenerate the saved default landing at the fixed all-zero test commit. |
 | Older facts tests reject the new mock | Update their earlier mock contract before treating them as site acceptance. |
 
 Source HTML is treated as data. The renderer builds a limited set of tags, removes raw active blocks,
@@ -87,7 +88,7 @@ node website/build.mjs --live
 Inspect the landing and documentation HTML, the local assets and `build-info.json`.
 Check that default output has noindex on every HTML page, a Disallow rule and no discovery files.
 Check that live output has the matching Markdown twins, canonical URLs and sitemap routes.
-Run the checker after it is added. Compare default `index.html` with `website/mock/index.html`
+Run `node website/check.mjs` in default mode or append `--live` for discovery mode. Compare default `index.html` with `website/mock/index.html`
 using the same source commit. The tests use temporary output directories.
 Remove the generated output when finished.
 

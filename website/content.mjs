@@ -3,7 +3,7 @@ export const content = {
   eyebrow: 'COMPUTER USE FOR AI AGENTS ON MAC',
   headline: 'Let your AI use Mac apps.',
   headlineAccent: 'In the background.',
-  heroLede: 'Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup. Give Claude Code a computer use task in native apps with background actions.',
+  heroLede: 'Give Claude Code computer use in native apps on your Mac, in the background. Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.',
   chips: ['Controls native Mac apps', 'Runs in the background', 'Saved reads', 'Cleanup proof', 'MIT licensed'],
   heroActions: [{ label: 'Get started', href: '/#quickstart' }, { label: 'Explore the source', href: 'https://github.com/aunysillyme/lean-computer-use' }],
   columns: [
@@ -49,7 +49,7 @@ export const content = {
   sectionLabels: { how: 'WHAT THE INSTALLER GIVES YOU', install: 'GETTING STARTED', deeper: 'COMMANDS & GUIDES', evidence: 'PROOF & GUARANTEES', fresh: 'RELEASE NOTES' },
   nav: [
     { label: 'Overview', href: '#overview' },
-    { label: 'How computer use works', href: '#how-it-works' },
+    { label: 'How it works', href: '#flow' },
     { label: 'Watch the trailer', href: '#trailer' },
     { label: 'Getting started', href: '#quickstart' },
     { label: 'Commands & guides', href: '#reference' },
