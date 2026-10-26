@@ -78,7 +78,8 @@ test('install then uninstall restores the temp tree', async t => {
   const value = setup(t);
   const before = snapshot(value.state);
   assert.equal(await installCommand([...value.args, '--yes', '--with-hooks'], value.adapters), 0);
-  assert.equal(lstatSync(join(value.share, 'desk/desk')).mode & 0o777, 0o755);
+  // Windows has no POSIX execute bit; the desk tools drive macOS, so the mode is asserted where modes exist.
+  if (process.platform !== 'win32') assert.equal(lstatSync(join(value.share, 'desk/desk')).mode & 0o777, 0o755);
   assert.match(readFileSync(join(value.dir, 'agents/desk-runner.md'), 'utf8'), new RegExp(value.share.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(existsSync(join(value.share, 'desk/tests')), false);
   assert.equal(existsSync(join(value.dir, 'skills/lean-computer-use/desk-brief.md')), true);
