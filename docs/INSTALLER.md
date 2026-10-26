@@ -35,7 +35,7 @@ The installer never installs third-party tools, runs vendor logins, or changes g
 
 ## Hook merge
 
-`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently.
+`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently, including the cleanup entries for SubagentStop, Stop and SessionEnd (see [cleanup](cleanup.md)).
 MCP native tools and Bash have separate matchers.
 The Bash handler checks that the first word of a command segment is `desk`, `desk-read` or `desk-clean` before it applies native behavior.
 Uninstall removes only entries carrying this install's marker.

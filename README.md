@@ -116,6 +116,17 @@ This merges marked retry and batching entries into the host's settings while pre
 The default installation prints a snippet path and manual merge instructions.
 The retry guard and batch hint support the workflow; the runner enforces the brief's boundaries. Malformed input or an internal error lets the call through.
 
+## Cleanup: nothing keeps running
+
+`desk` records a lease for the driver daemon it starts, and `desk-reap spawn` records one for any helper. When the run ends, the runner executes:
+
+```sh
+"$DESK/desk-reap" cleanup --apply
+```
+
+It ends only leased processes, children first, with SIGTERM and a 3 second wait before SIGKILL for the same process. The registered hooks repeat it when a runner stops, a turn ends or the session ends, and `doctor` reports any leftover.
+Your apps, browsers, a driver you started yourself and any process without a lease stay as they are. `npx lean-computer-use cleanup` is a dry run until you add `--apply`. See [cleanup](docs/cleanup.md).
+
 ## Check your environment
 
 ```sh

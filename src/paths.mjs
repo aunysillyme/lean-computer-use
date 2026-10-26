@@ -71,7 +71,7 @@ export function payloadFiles(roots, source = packageRoot) {
     ['desk', 'share', 'desk'], ['hooks', 'share', 'hooks'],
   ]) {
     for (const name of publicFiles(join(source, folder))) {
-      files.push({ root, path: `${destination}/${name}`, content: readFileSync(join(source, folder, name)), mode: folder === 'desk' && ['desk', 'desk-read', 'desk-clean', '_resolve.py'].includes(name) || name.endsWith('.sh') ? 0o755 : 0o644 });
+      files.push({ root, path: `${destination}/${name}`, content: readFileSync(join(source, folder, name)), mode: folder === 'desk' && ['desk', 'desk-read', 'desk-clean', 'desk-reap', '_resolve.py', '_lease.py'].includes(name) || name.endsWith('.sh') ? 0o755 : 0o644 });
     }
   }
   files.push({ root: 'dir', path: 'skills/lean-computer-use/desk-brief.md', content: readFileSync(join(source, 'briefs/desk-brief.md')), mode: 0o644 });

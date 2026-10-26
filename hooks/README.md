@@ -1,6 +1,6 @@
 # Native-app hooks
 
-The optional hooks help a runner stop a repeated error and combine small actions. Install their registrations with `npx lean-computer-use --with-hooks`. The installer merges [settings-snippet.json](settings-snippet.json) into the selected Claude Code settings file, substitutes the installed hook folder for `__HOOKS_DIR__`, and marks the entries `lean-computer-use`. Uninstall removes those marked entries while preserving other settings.
+The optional hooks help a runner stop a repeated error, combine small actions and end the processes it leased. Install their registrations with `npx lean-computer-use --with-hooks`. The installer merges [settings-snippet.json](settings-snippet.json) into the selected Claude Code settings file, substitutes the installed hook folder for `__HOOKS_DIR__`, and marks the entries `lean-computer-use`. Uninstall removes those marked entries while preserving other settings.
 
 Claude Code calls a self-locating shell shim with a JSON payload on stdin. The shim runs its neighboring Python file, which imports `_common.py`. Python uses only its standard library. The hooks run locally and make no network requests. Nothing watches their state or alerts when a hook fails open; the runner still stops and reports after the same error twice.
 
@@ -8,6 +8,7 @@ Claude Code calls a self-locating shell shim with a JSON payload on stdin. The s
 | --- | --- | --- |
 | `native_retry_guard.sh` | PreToolUse and PostToolUse for native MCP tools and desk commands | Records an error result and blocks a third attempt with identical tool name and input after two errors |
 | `native_batch_nudge.sh` | PostToolUse for native MCP tools and desk commands | Adds one non-blocking context hint after consecutive single actions |
+| `cleanup_hook.sh` | SubagentStop (matcher `desk-runner`), Stop and SessionEnd | Ends the session's leased processes through `desk/desk-reap`; always exits 0 |
 
 MCP matchers cover `mcp__computer-use__.*` and `mcp__cua-driver__.*`. Bash has its own registration. The scripts match `desk`, `desk-read` and `desk-clean` only when one is the first word of a command segment. Quoted arguments and unrelated shell commands stay outside that match. Here-document payloads are ignored.
 
@@ -18,6 +19,10 @@ State lives under `LEAN_COMPUTER_USE_STATE`, or under `${TMPDIR:-/tmp}/lean-comp
 The retry hook records explicit error flags, response text starting with `error`, and failing desk command responses. A success with the same input clears that error count. A successful call to a different target also clears it. A different failed call starts a new count. Probe tools (`list_apps`, `list_windows`, `launch_app`, `end_session`, `status`, `list_tools`) never count or block.
 
 The batch hint appears once per streak. A probe, a filtered `desk-read`, cleanup, or a call chaining desk commands with `&&` resets the streak. The runner chains the remaining actions, reads once, and returns the saved read for independent verification.
+
+## Cleanup hook
+
+`cleanup_hook.sh` reads `session_id` (and `agent_type` for SubagentStop) from the payload and ends only that session's leases. Stop is skipped while a subagent is still running; SessionEnd and the runner's own stop clean up later. It prints nothing to stdout and exits 0 for malformed input, a missing script or any internal error. See [desk-reap](../desk/README.md#cleanup-with-desk-reap).
 
 ## Failure and verification
 

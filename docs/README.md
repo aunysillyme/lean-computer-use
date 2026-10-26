@@ -3,6 +3,7 @@
 - [Install](install.md): preview, install, optional hooks and removal.
 - [Driver precautions](cua-driver-install.md): verify the upstream app and permissions.
 - [Installer contract](INSTALLER.md): ownership, backups and safe removal.
+- [Cleanup](cleanup.md): leases, the cleanup command, hooks and what is left alone.
 - [Method](METHOD.md): the native app workflow in one page.
 - [Skill](../skills/lean-computer-use/SKILL.md): the entry point for an AI agent.
 - [Desk commands](../desk/README.md): action, read and cleanup behavior and exit codes.
