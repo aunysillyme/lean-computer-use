@@ -403,3 +403,12 @@ test('RED pinned source snapshots reject coordinated metadata or README drift', 
     built(dir);
   }
 });
+
+test('live markdown twins carry no mobile navigation summary text', t => {
+  const dir = fixture(t);
+  const live = built(dir, { live: true, out: 'public' });
+  for (const route of routes) {
+    const lines = read(live, markdownFile(route)).split('\n').map(line => line.trim());
+    for (const label of ['Documentation', 'On this page']) assert.ok(!lines.includes(label), `${route} has a stray "${label}" line`);
+  }
+});
