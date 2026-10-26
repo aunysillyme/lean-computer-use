@@ -92,10 +92,20 @@ def driver_status(timeout=5):
     return None
 
 
+def record_driver_lease(launched):
+    """Record a lease for the daemon this call started, so cleanup can prove it owns it."""
+    try:
+        from _lease import record_driver
+        record_driver(launched)
+    except Exception:
+        pass  # a missing lease only means cleanup leaves the daemon alone
+
+
 def ensure_driver():
     if driver_status() is True:
         return
     prepare_state()
+    launched = time.time()
     try:
         result = subprocess.run(["open", "-g", "-a", "/Applications/CuaDriver.app", "--args", "serve"],
                                 capture_output=True, text=True, timeout=5)
@@ -117,6 +127,7 @@ def ensure_driver():
             raise DeskError("cannot start cua-driver: daemon not running within 10 s")
         try:
             if driver_status(min(2, remaining)) is True:
+                record_driver_lease(launched)
                 return
         except DeskError as error:
             # One slow status probe is not a failed start; keep polling until the deadline.

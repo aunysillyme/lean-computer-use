@@ -1,8 +1,28 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { locations, payloadFiles, safePath, digest, packageRoot } from './paths.mjs';
 import { hooksRegistered } from './hooks-register.mjs';
+
+/** Leased processes that are still running: nothing is spawned unless a lease file exists. */
+/** @returns {[string, string, string, string]} */
+function leftovers(env, source, run) {
+  const id = 'leftover-processes', fix = 'Run lean-computer-use cleanup --apply.';
+  const directory = env.LEAN_COMPUTER_USE_LEASES || join(env.XDG_STATE_HOME || join(env.HOME || homedir(), '.local/state'), 'lean-computer-use/leases');
+  try {
+    if (!existsSync(directory) || !readdirSync(directory).some(name => /^[0-9a-f]{16}\.json$/.test(name))) return [id, 'PASS', 'no leased processes are running', fix];
+    const reaper = join(source, 'desk/desk-reap');
+    if (!existsSync(reaper)) return [id, 'PASS', 'no leased processes are running', fix];
+    const result = run('python3', [reaper, 'cleanup', '--all', '--json']);
+    let value;
+    try { value = JSON.parse(result.stdout); } catch { return [id, 'FAIL', 'leased processes exist but the process list could not be read', fix]; }
+    const live = value.candidates || [];
+    if (!live.length) return [id, 'PASS', 'no leased processes are running', fix];
+    const age = seconds => seconds < 90 ? `${seconds}s` : seconds < 5400 ? `${Math.round(seconds / 60)}m` : `${Math.round(seconds / 3600)}h`;
+    return [id, 'FAIL', `leftover leased processes: ${live.map(c => `${c.name} pid ${c.pid} (${c.processes} processes, age ${age(c.age_seconds)})`).join('; ')}`, fix];
+  } catch { return [id, 'FAIL', 'the lease list could not be read, so leftover processes could not be checked', fix]; }
+}
 
 /** @param {{dir?: string, share?: string}} options @param {Record<string, any>} adapters */
 export function doctor(options = {}, adapters = {}) {
@@ -69,6 +89,8 @@ export function doctor(options = {}, adapters = {}) {
   } catch {
     add('hooks', 'WARN', 'optional hook registration could not be read', 'Review settings.json, then run lean-computer-use install --with-hooks --yes.');
   }
+  const [leftId, leftStatus, leftMessage, leftFix] = leftovers(env, source, run);
+  add(leftId, leftStatus, leftMessage, leftFix);
   return { checks, exitCode: checks.some(check => check.status === 'FAIL') ? 1 : 0 };
 }
 

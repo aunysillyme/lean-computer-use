@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""desk-reap: end the processes this package started, and nothing else.
+
+desk-reap spawn [--session ID] [--run NAME] -- COMMAND [ARGS...]   start detached and record a lease
+desk-reap cleanup [--apply] [--all] [--session ID] [--run NAME] [--json]   dry run unless --apply
+desk-reap hook   read a Claude Code hook payload on stdin; always exits 0
+"""
+import json
+import sys
+
+import _lease
+
+
+def option_error(message):
+    print("desk-reap: " + message, file=sys.stderr)
+    return 2
+
+
+def run_spawn(args):
+    if "--" not in args:
+        return option_error("a command is required after --")
+    split = args.index("--")
+    flags, command = args[:split], args[split + 1:]
+    if not command:
+        return option_error("a command is required after --")
+    options = {"session": None, "run": ""}
+    index = 0
+    while index < len(flags):
+        if flags[index] in ("--session", "--run") and index + 1 < len(flags) and not flags[index + 1].startswith("--"):
+            options[flags[index][2:]] = flags[index + 1]
+            index += 2
+        else:
+            return option_error("usage: desk-reap spawn [--session ID] [--run NAME] -- COMMAND [ARGS...]")
+    try:
+        lease = _lease.spawn(command, options["session"], options["run"])
+    except ValueError as error:
+        return option_error(str(error))
+    except RuntimeError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    suffix = f" session={lease['session']}" if lease["session"] else ""
+    print(f"spawned pid={lease['pid']} lease={lease['id']} kind={lease['kind']}{suffix}")
+    return 0
+
+
+def run_cleanup(args):
+    apply = all_sessions = as_json = False
+    session = run = None
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--apply":
+            apply = True
+        elif arg == "--all":
+            all_sessions = True
+        elif arg == "--json":
+            as_json = True
+        elif arg in ("--session", "--run") and index + 1 < len(args) and not args[index + 1].startswith("--"):
+            index += 1
+            if arg == "--session":
+                session = args[index]
+            else:
+                run = args[index]
+        else:
+            return option_error("usage: desk-reap cleanup [--apply] [--all] [--session ID] [--run NAME] [--json]")
+        index += 1
+    if not session and not all_sessions:
+        session = _lease.session_from_env() or None
+    try:
+        result = _lease.reap(apply=apply, session=session, run=run)
+    except Exception:
+        print("cleanup: the process list could not be read; nothing was ended.", file=sys.stderr)
+        return 1
+    if as_json:
+        print(json.dumps(result, indent=2))
+        return _lease.exit_code(result)
+    if not result["apply"]:
+        for c in result["candidates"]:
+            print(f"candidate {c['name']} pid={c['pid']} processes={c['processes']} age={_lease.age_text(c['age_seconds'])} "
+                  f"session={c['session'][:8] if c['session'] else '-'} run={c['run'] or '-'}")
+    for r in result["refused"]:
+        print(f"refused pid={r['pid']} lease={r['id']}: {r['reason']}", file=sys.stderr)
+    print(_lease.summary(result))
+    return _lease.exit_code(result)
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0 if argv else 2
+    command, rest = argv[0], argv[1:]
+    if command == "spawn":
+        return run_spawn(rest)
+    if command == "cleanup":
+        return run_cleanup(rest)
+    if command == "hook":
+        return _lease.hook_main()
+    return option_error("unknown command; run desk-reap --help")
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

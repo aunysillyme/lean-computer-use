@@ -58,6 +58,7 @@ Publish and tag only through the maintainer's [release process](RELEASING.md).
 | Block a third identical error, fail open on malformed input | `hooks/tests/test_hooks.py` |
 | Keep probes unblocked and nudge once per action streak | `hooks/tests/test_hooks.py` |
 | Keep every documented desk exit code covered | `desk/tests/test_desk.py` |
+| End only leased, provable processes; hooks always exit 0 | `desk/tests/test_reap.py`, `test/cleanup.test.mjs` |
 | Keep private names out of bodies, paths and commit messages | `test/internal-terms.test.mjs`, `scripts/check-terms.mjs` |
 | Keep path, contact and credential patterns out of public text | `test/privacy.test.mjs` |
 | Keep prose short and use the shared lead | `test/prose.test.mjs`, `test/copy.test.mjs` |

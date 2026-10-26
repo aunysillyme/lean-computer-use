@@ -39,10 +39,19 @@ This requests a gentle quit for that app and cleans owned state; never force-kil
 Leave an app that was already running open.
 Check `osascript -e 'application "<Name>" is running'` again and compare it with the snapshot.
 If cleanup exits 3, report the remaining app or driver state as pending.
-Stop any other background process this run started and check it by its own process id.
+Start any other background process this run needs with `"$DESK/desk-reap" spawn -- <command>`, so it carries a lease.
+Last action, after `desk-clean` and the app check, on success, failure and a reached bound:
+
+```sh
+"$DESK/desk-reap" cleanup --apply
+```
+
+It ends only leased processes of this session, children first: SIGTERM, a 3 second wait, then SIGKILL for the same process only.
+It never touches an app, a browser or an unleased process, and it leaves a driver that still reports live sessions running.
+Copy its single `cleanup:` line into the report.
 
 ## Report
 
 Return fewer than 8 lines: outcome (`confirmed`, `partial`, `unverifiable` or `failed`), requested values, saved evidence path, commands or call counts, errors, and uncovered work.
-End with one `Cleanup:` line backed by the initial and final app-running checks and any pending resource.
+End with one `Cleanup:` line backed by the initial and final app-running checks, the `cleanup:` line above and any pending resource.
 The main session verifies the saved evidence before reporting the value to the user.

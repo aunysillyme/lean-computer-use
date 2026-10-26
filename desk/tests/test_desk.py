@@ -101,7 +101,7 @@ class FakeDesktop:
         # and exclude the real driver entirely, even if fake execution fails.
         (fake_bin / "python3").symlink_to(sys.executable)
         self.env = dict(os.environ, PATH=str(fake_bin),
-                        DESK_STATE_DIR=str(self.state), FAKE_CUA_LOG=str(self.log),
+                        DESK_STATE_DIR=str(self.state), LEAN_COMPUTER_USE_LEASES=str(root / "leases"), FAKE_CUA_LOG=str(self.log),
                         FAKE_DRIVER_LOG=str(root / "driver.jsonl"),
                         FAKE_DRIVER_STATE=str(root / "driver-state"),
                         FAKE_CUA_CONFIG=str(self.config), FAKE_CUA_COUNTS=str(root / "counts.json"))
@@ -869,6 +869,7 @@ def test_documented_exit_table_names_real_cases():
 def _resolver(monkeypatch, tmp_path):
     monkeypatch.syspath_prepend(str(DESK_DIR))
     monkeypatch.setenv("DESK_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(tmp_path / "leases"))
     sys.modules.pop("_resolve", None)
     import _resolve
     return _resolve

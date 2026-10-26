@@ -26,7 +26,7 @@ export function llmsSource(root) {
   };
   return ['# lean-computer-use', '', `> ${facts.lead}`, '', 'Install: `npx lean-computer-use`', '', 'Computer use for AI agents, with Claude Code as the supported host.', '', '## Docs', '',
     link('README.md', 'Start here.'), link('docs/README.md', 'Choose a guide.'),
-    link('docs/install.md', 'Install and remove the package.'), link('docs/INSTALLER.md', 'Read options and file ownership.'),
+    link('docs/install.md', 'Install and remove the package.'), link('docs/INSTALLER.md', 'Read options and file ownership.'), link('docs/cleanup.md', 'End leased processes after a run.'),
     link('docs/cua-driver-install.md', 'Prepare native app control.'), link('docs/METHOD.md', 'Follow the process.'), link('docs/STACK.md', 'Read the stack card.'), '',
     '## Reference', '', link('skills/lean-computer-use/SKILL.md', 'Activate the method.'),
     ...['desk-run', 'same-app-chaining', 'background-only', 'filtered-reads', 'cleanup-with-proof', 'verify', 'failure-modes', 'cheap-helper-or-subagent'].map(name => link(`skills/lean-computer-use/methods/${name}.md`, 'Read this method.')),

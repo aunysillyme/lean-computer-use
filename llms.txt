@@ -12,6 +12,7 @@ Computer use for AI agents, with Claude Code as the supported host.
 - [Documentation](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/README.md): Choose a guide.
 - [Install](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/install.md): Install and remove the package.
 - [Installer contract](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/INSTALLER.md): Read options and file ownership.
+- [Cleanup: nothing keeps running](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/cleanup.md): End leased processes after a run.
 - [Install cua-driver carefully](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/cua-driver-install.md): Prepare native app control.
 - [Native app method](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/METHOD.md): Follow the process.
 - [Stack card](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.0/docs/STACK.md): Read the stack card.

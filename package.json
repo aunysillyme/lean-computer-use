@@ -12,7 +12,7 @@
   "bugs": { "url": "https://github.com/aunysillyme/lean-computer-use/issues" },
   "funding": "https://github.com/sponsors/aunysillyme",
   "keywords": ["agent-skills", "claude-code", "computer-use", "native-apps", "macos", "cua-driver", "cua", "token-efficiency", "subagents", "accessibility", "cli", "npm", "developer-tools", "ai-agents", "macos-automation", "mac-automation", "background-computer-use"],
-  "files": ["bin/", "src/", "skills/", "agents/", "briefs/", "desk/desk", "desk/desk-read", "desk/desk-clean", "desk/_resolve.py", "desk/README.md", "desk/exit-codes.json", "hooks/*.py", "hooks/*.sh", "hooks/settings-snippet.json", "hooks/README.md", "docs/*.md", "*.md", "LICENSE", "llms.txt"],
+  "files": ["bin/", "src/", "skills/", "agents/", "briefs/", "desk/desk", "desk/desk-read", "desk/desk-clean", "desk/desk-reap", "desk/_resolve.py", "desk/_lease.py", "desk/README.md", "desk/exit-codes.json", "hooks/*.py", "hooks/*.sh", "hooks/settings-snippet.json", "hooks/README.md", "docs/*.md", "*.md", "LICENSE", "llms.txt"],
   "scripts": {
     "test": "node --test",
     "test:py": "python3 -m pytest -q desk/tests hooks/tests",
