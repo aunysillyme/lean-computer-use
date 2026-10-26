@@ -264,12 +264,12 @@ def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkey
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "S9")
-    # The two processes started more than the allowed skew apart, so only the newer one is leased.
-    _lease.record_driver(marker + 1.0)
+    # Only the daemon that began with this launch is leased; an older one is not ours.
+    _lease.record_driver(marker)
     leases = _lease.read_leases(lab.leases)[0]
     assert [l["pid"] for l in leases] == [new] and leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
     assert alive(old)
-    _lease.record_driver(marker + 1.0)
+    _lease.record_driver(marker)
     assert len(_lease.read_leases(lab.leases)[0]) == 1
 
 
@@ -306,3 +306,32 @@ def test_a_lease_file_other_users_could_read_is_not_trusted(lab):
     os.chmod(lab.leases / (lease["id"] + ".json"), 0o644)
     assert "ended=none" in lab.reap("cleanup", "--apply", "--all").stdout
     assert alive(pid)
+
+
+def test_two_new_daemons_are_ambiguous_and_neither_is_leased(lab, monkeypatch):
+    marker = time.time()
+    lab.start("cua-driver", extra=["serve"])
+    lab.start("cua-driver", extra=["serve"])
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
+    assert _lease.record_driver(marker) is None
+    assert _lease.read_leases(lab.leases)[0] == []
+
+
+def test_spawn_rollback_stops_what_the_child_started(lab):
+    out = lab.dir / "grandchild.txt"
+    script = lab.dir / "fork.cjs"
+    script.write_text(
+        "const {spawn}=require('node:child_process');\n"
+        f"const g=spawn({str(lab.bin / 'helper')!r},['-e','setTimeout(()=>{{}},120000)'],{{stdio:'ignore'}});\n"
+        f"require('node:fs').writeFileSync({str(out)!r},String(g.pid));setTimeout(()=>{{}},120000);\n")
+    # An unusable lease location makes the lease write fail after the process has started.
+    blocked = lab.dir / "blocked"
+    blocked.write_text("not a directory")
+    result = lab.reap("spawn", "--", str(lab.bin / "helper"), str(script), env={"LEAN_COMPUTER_USE_LEASES": str(blocked / "leases")})
+    assert result.returncode == 2 and "stopped" in result.stderr
+    deadline = time.monotonic() + 3
+    while not out.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    if out.exists():
+        time.sleep(0.5)
+        assert not alive(int(out.read_text()))

@@ -53,6 +53,7 @@ Its children go first. Each process gets SIGTERM, then a 3 second wait, then SIG
 ## What is left alone
 
 - A driver you started yourself: it has no lease. `desk` starts the daemon on demand, so a driver ended here comes back on the next call.
+- A daemon that two sessions started at the same moment: it is ambiguous, so it is not leased.
 - A driver that still reports live sessions: the line shows `busy_driver=1` and the exit code is 1.
 - Apps and browsers found below a leased helper, unless they belong to the helper's own bundle: the line shows `kept_other_apps=N`.
 - Processes with no lease, and processes of other users.
@@ -70,6 +71,8 @@ Lease files are mode 0600 in a directory only your user can write, and a lease w
 | SubagentStop, matcher `desk-runner` | The session's leases when the runner stops. |
 | Stop | The session's leases at the end of a turn, unless a subagent is still running. |
 | SessionEnd | The session's leases when the session ends. |
+
+Runners that work in parallel inside one session share its scope: when one stops, the hook ends the session's leases. Give each its own `--run NAME` and clean with `cleanup --run NAME` when their helpers must outlive one another.
 
 Each hook reads `session_id` (and `agent_type` for SubagentStop) from the hook payload, ends that session's leases, and exits 0 on every path, so a session is never blocked. A malformed payload does nothing.
 

@@ -80,3 +80,14 @@ test('doctor runs no extra command when no lease exists', { skip }, t => {
   assert.deepEqual(calls, ['python3']);
   assert.equal(result.checks.find(item => item.id === 'leftover-processes').status, 'PASS');
 });
+
+test('doctor fails when a leased process is running but refused', { skip }, t => {
+  const root = temp(t), leases = join(root, 'leases');
+  mkdirSync(leases);
+  writeFileSync(join(leases, '0123456789abcdef.json'), '{}');
+  const env = { ...process.env, LEAN_COMPUTER_USE_LEASES: leases };
+  const answer = JSON.stringify({ candidates: [], refused: [{ id: 'x', pid: 42, reason: 'a browser is never ended here' }] });
+  const result = doctor({ dir: join(root, 'host'), share: join(root, 'share') }, { env, platform: 'linux', run: program => program === 'python3' ? { status: 0, stdout: answer, stderr: '' } : { status: 0, stdout: '', stderr: '' } });
+  const check = result.checks.find(item => item.id === 'leftover-processes');
+  assert.equal(check.status, 'FAIL'); assert.match(check.message, /pid 42 \(a browser is never ended here\)/);
+});

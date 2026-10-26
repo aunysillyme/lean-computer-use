@@ -25,6 +25,7 @@ ROW = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\w{3}\s+\w{3}\s+\d{1,2}\
 BROWSER = re.compile(r"^(?:google[ -]chrome|chromium|chrome|headless_shell|microsoft[ -]edge|msedge|brave|vivaldi|opera|firefox|"
                      r"safari|arc)(?![A-Za-z0-9_])", re.I)
 DRIVER = re.compile(r"^(?:.*/)?cua-driver(?: .*)? serve(?: .*)?$")
+PS = next((path for path in ("/bin/ps", "/usr/bin/ps") if os.path.exists(path)), "ps")
 UID = os.getuid() if hasattr(os, "getuid") else -1
 
 
@@ -42,7 +43,7 @@ def session_from_env(env=None):
 
 
 def ps_table():
-    result = subprocess.run(["ps", "-axww", "-o", "pid=,ppid=,uid=,stat=,lstart=,command="], capture_output=True,
+    result = subprocess.run([PS, "-axww", "-o", "pid=,ppid=,uid=,stat=,lstart=,command="], capture_output=True,
                             text=True, timeout=8, env=dict(os.environ, LC_ALL="C"))
     if result.returncode:
         raise OSError("ps failed")
@@ -57,7 +58,7 @@ def ps_table():
 
 
 def ps_one(pid):
-    result = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "pid=,ppid=,uid=,stat=,lstart=,command="],
+    result = subprocess.run([PS, "-ww", "-p", str(pid), "-o", "pid=,ppid=,uid=,stat=,lstart=,command="],
                             capture_output=True, text=True, timeout=8, env=dict(os.environ, LC_ALL="C"))
     match = ROW.match(result.stdout.splitlines()[0]) if result.stdout.strip() else None
     if not match:
@@ -344,7 +345,7 @@ def reap(apply=False, session=None, run=None, directory=None):
 
 
 def names(counts):
-    parts = [f"{re.sub(r'[\\s,:]+', '_', name)}:{n}" for name, n in counts.items() if n > 0]
+    parts = [re.sub(r"[\s,:]+", "_", name) + ":" + str(n) for name, n in counts.items() if n > 0]
     return ",".join(parts) or "none"
 
 
@@ -392,6 +393,14 @@ def settled_row(pid):
     return previous
 
 
+def kill_group(child):
+    """The child leads its own session, so its group holds exactly it and what it started."""
+    try:
+        os.killpg(child.pid, signal.SIGKILL)
+    except OSError:
+        child.kill()
+
+
 def spawn(command, session=None, run=""):
     kind, reason = classify(command)
     if kind is None:
@@ -414,32 +423,35 @@ def spawn(command, session=None, run=""):
     except RuntimeError:
         raise
     except ValueError:
-        child.kill()
+        kill_group(child)
         raise
     except Exception:
-        # The child is ours until Popen is dropped, so kill reaches exactly this process.
-        child.kill()
+        kill_group(child)
         raise ValueError("Could not record the lease, so the process was stopped.") from None
 
 
 def record_driver(launched_at):
-    """After desk starts the daemon itself, lease the `cua-driver serve` processes that began after the launch."""
+    """After desk starts the daemon itself, lease the one `cua-driver serve` that began with that launch.
+
+    More than one candidate is ambiguous (another session may have started its own), so nothing is leased."""
     table = ps_table()
     known = {(l["pid"], l["start"]) for l in read_leases()[0]}
+    found = []
     for row in table.values():
-        if row["uid"] != UID or not is_live(row):
-            continue
-        if live_kind(row["command"])[0] != "driver" or (row["pid"], row["start"]) in known:
+        if row["uid"] != UID or not is_live(row) or live_kind(row["command"])[0] != "driver":
             continue
         try:
             began = time.mktime(time.strptime(row["start"], "%a %b %d %H:%M:%S %Y"))
         except ValueError:
             continue
-        if began < launched_at - 2:
-            continue
-        write_lease({"pid": row["pid"], "kind": "driver", "start": row["start"], "command": row["command"],
-                     "argv": row["command"].split(" "), "session": session_from_env(), "run": "",
-                     "created": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z"})
+        if began >= launched_at - 1:
+            found.append(row)
+    if len(found) != 1 or (found[0]["pid"], found[0]["start"]) in known:
+        return None
+    row = found[0]
+    return write_lease({"pid": row["pid"], "kind": "driver", "start": row["start"], "command": row["command"],
+                        "argv": row["command"].split(" "), "session": session_from_env(), "run": "",
+                        "created": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z"})
 
 
 # Hook: SubagentStop, Stop and SessionEnd, never blocking ------------------------

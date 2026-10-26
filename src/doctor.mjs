@@ -17,7 +17,8 @@ function leftovers(env, source, run) {
     const result = run('python3', [reaper, 'cleanup', '--all', '--json']);
     let value;
     try { value = JSON.parse(result.stdout); } catch { return [id, 'FAIL', 'leased processes exist but the process list could not be read', fix]; }
-    const live = value.candidates || [];
+    const live = value.candidates || [], refused = value.refused || [];
+    if (!live.length && refused.length) return [id, 'FAIL', `${refused.length} leased process(es) are running but cannot be proven safe to end: ${refused.map(r => `pid ${r.pid} (${r.reason})`).join('; ')}`, fix];
     if (!live.length) return [id, 'PASS', 'no leased processes are running', fix];
     const age = seconds => seconds < 90 ? `${seconds}s` : seconds < 5400 ? `${Math.round(seconds / 60)}m` : `${Math.round(seconds / 3600)}h`;
     return [id, 'FAIL', `leftover leased processes: ${live.map(c => `${c.name} pid ${c.pid} (${c.processes} processes, age ${age(c.age_seconds)})`).join('; ')}`, fix];
