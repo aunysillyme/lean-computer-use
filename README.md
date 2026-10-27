@@ -1,6 +1,6 @@
 # lean-computer-use
 
-[![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/aunysillyme/lean-computer-use/badge)](https://scorecard.dev/viewer/?uri=github.com/aunysillyme/lean-computer-use)
 
 **Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.**
 
