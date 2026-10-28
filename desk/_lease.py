@@ -291,13 +291,13 @@ def end_all(snaps):
 
 
 def driver_busy():
-    """True when the shared driver reports live sessions. An unanswered query does not block cleanup."""
+    """Keep the shared driver unless it explicitly reports no live sessions."""
     try:
         result = subprocess.run(["cua-driver", "sessions"], capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
-        return False
+        return True
     text = result.stdout.strip().rstrip(".")
-    return result.returncode == 0 and bool(text) and text != "No live sessions"
+    return result.returncode != 0 or text != "No live sessions"
 
 
 def parse_created(value):
@@ -355,6 +355,8 @@ def summary(result):
         extra += f" stale_leases={result['stale']}"
     if result["refused"]:
         extra += f" refused={len(result['refused'])}"
+    if result["invalid"]:
+        extra += f" invalid_leases={result['invalid']}"
     if result["busy"]:
         extra += f" busy_driver={result['busy']}"
     if result["kept"]:
@@ -365,7 +367,7 @@ def summary(result):
 
 
 def exit_code(result):
-    return 1 if result["apply"] and (result["left"] or result["refused"]) else 0
+    return 1 if result["invalid"] or (result["apply"] and (result["left"] or result["refused"])) else 0
 
 
 def age_text(seconds):
@@ -477,7 +479,7 @@ def hook_main(stream=None):
         elif event != "SessionEnd":
             return 0
         result = reap(apply=True, session=session)
-        if any(result["ended"].values()) or result["left"] or result["refused"]:
+        if any(result["ended"].values()) or result["left"] or result["refused"] or result["invalid"]:
             print(summary(result), file=sys.stderr)
     except Exception:
         pass

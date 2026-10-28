@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, symlinkSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, symlinkSync, realpathSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { installCommand, uninstallCommand } from '../src/install.mjs';
@@ -52,10 +52,13 @@ test('cleanup and spawn run the packaged reaper and return its exit code', async
 });
 
 test('end to end: spawn leases a fake driver, doctor reports it, cleanup ends it', { skip: skip || spawnSync('node', ['--version']).status !== 0 }, async t => {
-  const root = temp(t), leases = join(root, 'leases'), bin = join(root, 'bin');
+  const root = temp(t), leases = join(root, 'leases'), bin = join(root, 'bin'), probe = join(root, 'probe');
   mkdirSync(bin);
+  mkdirSync(probe);
   symlinkSync(realpathSync(process.execPath), join(bin, 'cua-driver'));
-  const env = { ...process.env, LEAN_COMPUTER_USE_LEASES: leases, HOME: root };
+  writeFileSync(join(probe, 'cua-driver'), '#!/bin/sh\necho "No live sessions."\n');
+  chmodSync(join(probe, 'cua-driver'), 0o755);
+  const env = { ...process.env, LEAN_COMPUTER_USE_LEASES: leases, HOME: root, PATH: `${probe}:${process.env.PATH}` };
   delete env.CLAUDE_CODE_SESSION_ID;
   const reaper = join(ROOT, 'desk/desk-reap');
   const call = (...args) => spawnSync('python3', [reaper, ...args], { env, encoding: 'utf8', timeout: 30000 });
@@ -90,4 +93,18 @@ test('doctor fails when a leased process is running but refused', { skip }, t =>
   const result = doctor({ dir: join(root, 'host'), share: join(root, 'share') }, { env, platform: 'linux', run: program => program === 'python3' ? { status: 0, stdout: answer, stderr: '' } : { status: 0, stdout: '', stderr: '' } });
   const check = result.checks.find(item => item.id === 'leftover-processes');
   assert.equal(check.status, 'FAIL'); assert.match(check.message, /pid 42 \(a browser is never ended here\)/);
+});
+
+test('doctor reports invalid leases as unknown', { skip }, t => {
+  const root = temp(t), leases = join(root, 'leases');
+  mkdirSync(leases);
+  writeFileSync(join(leases, '0123456789abcdef.json'), '{broken');
+  const env = { ...process.env, LEAN_COMPUTER_USE_LEASES: leases };
+  const answer = JSON.stringify({ candidates: [], refused: [], invalid: 1 });
+  const result = doctor({ dir: join(root, 'host'), share: join(root, 'share') }, {
+    env, platform: 'linux', run: () => ({ status: 0, stdout: answer, stderr: '' })
+  });
+  const check = result.checks.find(item => item.id === 'leftover-processes');
+  assert.equal(check.status, 'FAIL');
+  assert.match(check.message, /status is unknown/);
 });

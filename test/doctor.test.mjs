@@ -42,6 +42,17 @@ test('doctor checks package files on other platforms and skips driver commands',
   assert.equal(result.checks.find(check => check.id === 'driver').message, 'skipped: macOS only');
 });
 
+test('doctor command checks explicit install roots', async t => {
+  const value = await setup(t);
+  const lines = [];
+  const result = doctorCommand(['--dir', value.options.dir, '--share', value.options.share, '--json'], {
+    source: value.source, platform: 'linux', run: goodRun, write: line => lines.push(line)
+  });
+  assert.equal(result, 0);
+  assert.equal(JSON.parse(lines[0]).checks.find(check => check.id === 'installed-files').status, 'PASS');
+  assert.throws(() => doctorCommand(['--dir']), /Missing value for --dir/);
+});
+
 test('doctor fails missing runtime, permissions and changed installed files', async t => {
   const value = await setup(t);
   writeFileSync(join(value.options.dir, 'agents/desk-runner.md'), 'user edited\n');

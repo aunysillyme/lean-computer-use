@@ -18,6 +18,7 @@ function leftovers(env, source, run) {
     let value;
     try { value = JSON.parse(result.stdout); } catch { return [id, 'FAIL', 'leased processes exist but the process list could not be read', fix]; }
     const live = value.candidates || [], refused = value.refused || [];
+    if (value.invalid) return [id, 'FAIL', `${value.invalid} lease file(s) could not be validated; process status is unknown`, 'Review the invalid lease files before cleanup.'];
     if (!live.length && refused.length) return [id, 'FAIL', `${refused.length} leased process(es) are running but cannot be proven safe to end: ${refused.map(r => `pid ${r.pid} (${r.reason})`).join('; ')}`, fix];
     if (!live.length) return [id, 'PASS', 'no leased processes are running', fix];
     const age = seconds => seconds < 90 ? `${seconds}s` : seconds < 5400 ? `${Math.round(seconds / 60)}m` : `${Math.round(seconds / 3600)}h`;
@@ -97,12 +98,20 @@ export function doctor(options = {}, adapters = {}) {
 
 /** @param {string[]} args @param {Record<string, any>} adapters */
 export function doctorCommand(args = [], adapters = {}) {
+  /** @type {{json: boolean, dir?: string, share?: string}} */
   const options = { json: false };
-  for (const arg of args) {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
     if (arg === '--json') options.json = true;
+    else if (arg === '--dir' || arg === '--share') {
+      const value = args[++index];
+      if (!value || value.startsWith('--')) throw Object.assign(new Error(`Missing value for ${arg}`), { exitCode: 2 });
+      if (arg === '--dir') options.dir = value;
+      else options.share = value;
+    }
     else throw Object.assign(new Error(`Unknown option: ${arg}`), { exitCode: 2 });
   }
-  const result = doctor(adapters.options || {}, adapters);
+  const result = doctor({ ...adapters.options, ...options }, adapters);
   const write = adapters.write || console.log;
   if (options.json) write(JSON.stringify(result, null, 2));
   else for (const check of result.checks) write(`${check.status} ${check.id}: ${check.message}; fix: ${check.fix}`);

@@ -96,7 +96,12 @@ def test_spawn_writes_a_private_lease_and_cleanup_ends_the_driver(lab):
     assert lab.leases.stat().st_mode & 0o777 == 0o700
     lease = json.loads((lab.leases / name).read_text())
     assert (lease["pid"], lease["kind"], lease["session"]) == (pid, "driver", "S1")
-    result = lab.reap("cleanup", "--apply", "--all")
+    probe = lab.dir / "probe"
+    probe.mkdir()
+    sessions = probe / "cua-driver"
+    sessions.write_text("#!/bin/sh\necho 'No live sessions.'\n")
+    sessions.chmod(0o755)
+    result = lab.reap("cleanup", "--apply", "--all", env={"PATH": f"{probe}:{os.environ['PATH']}"})
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout.strip() == "cleanup: ended=cua-driver:1 left=0"
     assert not alive(pid)
@@ -259,7 +264,7 @@ def test_a_driver_with_live_sessions_is_left_running(lab):
 
 def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkeypatch):
     old = lab.start("cua-driver", extra=["serve"])
-    time.sleep(1.2)
+    time.sleep(2.1)  # ps start times have one-second precision and the lease window has a one-second margin.
     marker = time.time()
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
@@ -280,10 +285,21 @@ def test_invalid_and_unsafe_lease_files_are_ignored(lab):
     (lab.leases / "ffffffffffffffff.json").write_text(json.dumps({"v": 1, "id": "ffffffffffffffff", "pid": pid, "kind": "helper"}))
     (lab.leases / "notes.txt").write_text("x")
     result = lab.reap("cleanup", "--apply", "--all")
-    assert result.returncode == 0 and alive(pid)
+    assert result.returncode == 1 and "invalid_leases=2" in result.stdout and alive(pid)
     link = lab.dir / "link"
     link.symlink_to(lab.leases, target_is_directory=True)
     assert "ended=none" in lab.reap("cleanup", "--apply", "--all", env={"LEAN_COMPUTER_USE_LEASES": str(link)}).stdout
+
+
+def test_unknown_driver_session_state_does_not_end_driver(lab):
+    fake = lab.dir / "path"
+    fake.mkdir()
+    sessions = fake / "cua-driver"
+    sessions.write_text("#!/bin/sh\nexit 1\n")
+    sessions.chmod(0o755)
+    pid = lab.spawn("cua-driver", SLEEP, ["serve"])
+    result = lab.reap("cleanup", "--apply", "--all", env={"PATH": f"{fake}:{os.environ['PATH']}"})
+    assert result.returncode == 1 and "busy_driver=1" in result.stdout and alive(pid)
 
 
 def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab):

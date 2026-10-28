@@ -55,6 +55,8 @@ Its children go first. Each process gets SIGTERM, then a 3 second wait, then SIG
 - A driver you started yourself: it has no lease. `desk` starts the daemon on demand, so a driver ended here comes back on the next call.
 - A daemon that two sessions started at the same moment: it is ambiguous, so it is not leased.
 - A driver that still reports live sessions: the line shows `busy_driver=1` and the exit code is 1.
+- A driver whose session status cannot be read: it is also left running and reported as busy.
+- Invalid lease files: they are not trusted, and `invalid_leases` reports their count for review.
 - Apps and browsers found below a leased helper, unless they belong to the helper's own bundle: the line shows `kept_other_apps=N`.
 - Processes with no lease, and processes of other users.
 
