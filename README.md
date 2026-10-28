@@ -170,9 +170,9 @@ Regenerate them with `npm run proof` after running the checks.
 <!-- proof:start -->
 | Measurement | Value | Measured | Expires |
 |---|---|---|---|
-| Runtime dependencies | 0 packages | 2026-10-25 | 2027-01-23 |
-| Fixture main median | 200 tokens | 2026-10-25 | 2027-01-23 |
-| Documented desk exits covered | 11 exit codes | 2026-10-25 | 2027-01-23 |
+| Runtime dependencies | 0 packages | 2026-10-28 | 2027-01-26 |
+| Fixture main median | 200 tokens | 2026-10-28 | 2027-01-26 |
+| Documented desk exits covered | 11 exit codes | 2026-10-28 | 2027-01-26 |
 <!-- proof:end -->
 
 ## Common questions

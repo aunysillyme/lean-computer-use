@@ -259,7 +259,7 @@ def test_a_driver_with_live_sessions_is_left_running(lab):
 
 def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkeypatch):
     old = lab.start("cua-driver", extra=["serve"])
-    time.sleep(1.2)
+    time.sleep(3.2)
     marker = time.time()
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))

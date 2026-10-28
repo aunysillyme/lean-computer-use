@@ -49,7 +49,7 @@ jobs:
               method, headers, body: body === undefined ? undefined : JSON.stringify(body),
               signal: AbortSignal.timeout(30000),
             });
-            if (!response.ok) throw Error(`GitHub ${method} ${endpoint}: ${response.status} ${await response.text()}`);
+            if (!response.ok) throw Object.assign(Error(`GitHub ${method} ${endpoint}: ${response.status} ${await response.text()}`), { status: response.status });
             return response.status === 204 ? null : response.json();
           }
           const repository = await api('');
@@ -78,8 +78,16 @@ jobs:
           }
           const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
           const prs = await api(`/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
-          if (!prs.length) await api('/pulls', 'POST', {
-            title: 'Refresh deterministic package proof', head: branch, base: repository.default_branch,
-            body: 'Refresh deterministic package receipts and the README proof table. Test receipts retain their original dates until those suites run again.\n\nThe Actions token does not trigger CI for this pull request. The maintainer reviews and runs required checks before merging.',
-          });
+          if (!prs.length) {
+            try {
+              await api('/pulls', 'POST', {
+                title: 'Refresh deterministic package proof', head: branch, base: repository.default_branch,
+                body: 'Refresh deterministic package receipts and the README proof table. Test receipts retain their original dates until those suites run again.\n\nThe Actions token does not trigger CI for this pull request. The maintainer reviews and runs required checks before merging.',
+              });
+            } catch (error) {
+              // The repository keeps Actions from opening pull requests, so the branch waits for the maintainer.
+              if (error.status !== 403) throw error;
+              console.log(`::warning title=Proof refresh ready::Open a pull request from ${branch}: ${repository.html_url}/compare/${repository.default_branch}...${branch}`);
+            }
+          }
           NODE

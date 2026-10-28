@@ -289,15 +289,16 @@ test('RED hero has approved headline and visible keywords, with the prohibited h
 
 test('RED unverified release stays pending and a verified local release shows its version', t => {
   const dir = fixture(t);
-  const pending = value => assert.match(text(value), /v0\.1\.0 not released yet/);
+  const version = JSON.parse(read(dir, 'package.json')).version;
+  const pending = value => assert.ok(text(value).includes(`v${version} not released yet`));
   const initial = read(built(dir), 'index.html');
   assert.throws(() => pending(initial.replace('not released yet', 'released')));
   pending(initial);
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: false }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: false }));
   pending(read(built(dir, { out: 'unverified' }), 'index.html'));
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: true }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: true }));
   const verified = text(read(built(dir, { out: 'verified' }), 'index.html'));
-  assert.ok(verified.includes('0.1.0'));
+  assert.ok(verified.includes(`v${version}`));
   assert.ok(!verified.includes('not released yet'));
 });
 
