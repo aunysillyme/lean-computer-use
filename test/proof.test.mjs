@@ -8,7 +8,7 @@ test('package proof rows are current, reproducible and complete', () => {
   const rows = JSON.parse(readFileSync(ROOT + '/proof/results.json', 'utf8'));
   assert.deepEqual(validateProof(rows), []);
   for (const id of ['tarball-size', 'tarball-files', 'runtime-dependencies', 'node-tests', 'python-tests', 'measure-fixture', 'desk-exits']) assert.ok(rows.some(row => row.id === id), id);
-  assert.ok(rows.every(row => row.subject === 'package' && row.package_version === '0.1.0'));
+  assert.ok(rows.every(row => row.subject === 'package' && row.package_version === '0.1.1'));
 });
 
 test('proof runs the test suite before it writes any row, because the suite validates the saved rows', () => {

@@ -208,7 +208,7 @@ export async function installCommand(args = [], adapters = {}) {
   ensureDirectory(roots.share, created);
   const directories = [...(previous?.directories || []), ...directoriesInside(roots, created)];
   const unique = [...new Map(directories.map(value => [`${value.root}:${value.path}:${value.parents || 0}`, value])).values()];
-  writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: '0.1.0', roots, anchors, files: records, directories: unique }), 0o600);
+  writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: '0.1.1', roots, anchors, files: records, directories: unique }), 0o600);
   if (!options.withHooks) {
     write(`Optional hooks: ${join(roots.share, 'hooks/settings-snippet.json')}`);
     write(`Merge hooks into ${join(roots.dir, 'settings.json')} with: lean-computer-use install --dir ${shellQuote(roots.dir)} --share ${shellQuote(roots.share)} --with-hooks --yes`);
