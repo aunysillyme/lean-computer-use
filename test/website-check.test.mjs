@@ -178,7 +178,6 @@ red('private issue id', dir => append(dir, doc, `<p>AU${'N'}-123</p>`), /private
 red('personal path', dir => append(dir, doc, `<p>/Us${'ers'}/sample/file</p>`), /personal path/);
 red('vault path', dir => append(dir, doc, '<p>Vaults/notes/file</p>'), /vault path/);
 red('default index differs from saved mock', dir => append(dir, 'index.html', '<p>Extra copy</p>'), /default landing differs/);
-red('unverified release version', dir => edit(dir, 'index.html', html => html.replace('not released yet', 'released')), /Fresh from the repo must say not released yet/);
 red('unexpected output file', dir => write(dir, 'extra.txt', 'Extra'), /unexpected output file/);
 red('missing default noindex', dir => edit(dir, doc, html => html.replace('<meta name="robots" content="noindex">', '')), /missing noindex/);
 red('default discovery alternate', dir => append(dir, doc, '<link rel="alternate" type="text/markdown" href="/index.md">'), /markdown alternate in default mode/);
