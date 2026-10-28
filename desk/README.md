@@ -55,7 +55,7 @@ The same command and exit pairs are recorded in [exit-codes.json](exit-codes.jso
 "$DESK/desk-reap" cleanup --apply    # ends it and prints one summary line
 ```
 
-The summary reads `cleanup: ended=cua-driver:1 left=0`. Exit 0 means every leased process ended (or a dry run); exit 1 means one is still alive or a lease was refused; exit 2 is a usage error. Options: `--all` (every session), `--session ID`, `--run NAME`, `--json`.
+The summary reads `cleanup: ended=cua-driver:1 left=0`. Exit 0 means every leased process ended (or a dry run found no invalid leases); exit 1 means a lease is invalid, a process is still alive or a lease was refused; exit 2 is a usage error. Options: `--all` (every session), `--session ID`, `--run NAME`, `--json`.
 
 A process ends only when its lease matches the live process (id, start time, command line, owner), it is not an ancestor of the cleanup run, and it passes its signature: `cua-driver serve` for the driver, or a leased helper that is not a browser and not a desktop app. Children end first. Each process gets SIGTERM, a 3 second wait, then SIGKILL only if the same process is still alive. Apps and browsers below a leased helper, unleased processes (including a driver you started yourself), and a driver that still reports live sessions stay running.
 

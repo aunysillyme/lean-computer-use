@@ -59,4 +59,5 @@ Do not delete a shared skill directory or an entire settings file as a substitut
 
 `test/installer.test.mjs` exercises temporary roots, dry runs, replacement backup, settings merge, edited-file preservation and install/uninstall restoration.
 `npx lean-computer-use doctor --json` compares installed files with the package and reports optional hook registration.
+For a custom installation, pass the same `--dir` and `--share` values to `doctor`.
 All tests use temporary paths and fake commands.

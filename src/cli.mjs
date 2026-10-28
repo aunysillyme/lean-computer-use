@@ -7,7 +7,7 @@ export const help = `lean-computer-use: native Mac app control
 Usage:
   lean-computer-use [install] [--dir PATH] [--share DIR] [--with-hooks] [--dry-run] [--yes]
   lean-computer-use uninstall [--dir PATH] [--share DIR] [--dry-run]
-  lean-computer-use doctor [--json]
+  lean-computer-use doctor [--dir PATH] [--share DIR] [--json]
   lean-computer-use measure [--projects-dir DIR] [--since YYYY-MM-DD] [--tool-pattern REGEX] [--json]
   lean-computer-use cleanup [--apply] [--all] [--session ID] [--run NAME] [--json]
   lean-computer-use spawn [--session ID] [--run NAME] -- COMMAND [ARGS...]
