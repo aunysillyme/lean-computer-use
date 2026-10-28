@@ -17,7 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
-- `desk` leases the driver daemon it started on Linux, where `ps` can report a start time up to 2 seconds early.
+- On Linux, where `ps` can report a start time up to 2 seconds early, the driver lease accepts that margin; macOS keeps its 1 second window.
 - The weekly proof refresh leaves its branch and a compare link when the repository does not let Actions open pull requests.
 
 ### Changed

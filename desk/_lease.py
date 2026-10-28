@@ -430,6 +430,11 @@ def spawn(command, session=None, run=""):
         raise ValueError("Could not record the lease, so the process was stopped.") from None
 
 
+# ps reports start to the second; Linux also derives it from a whole-second boot time,
+# so a process started at the launch can read up to 2 seconds early there.
+START_SLACK = 2 if sys.platform.startswith("linux") else 1
+
+
 def record_driver(launched_at):
     """After desk starts the daemon itself, lease the one `cua-driver serve` that began with that launch.
 
@@ -444,9 +449,7 @@ def record_driver(launched_at):
             began = time.mktime(time.strptime(row["start"], "%a %b %d %H:%M:%S %Y"))
         except ValueError:
             continue
-        # ps reports start to the second, and Linux derives it from a whole-second boot time,
-        # so a process started at the launch can read up to 2 seconds early.
-        if began >= launched_at - 2:
+        if began >= launched_at - START_SLACK:
             found.append(row)
     if len(found) != 1 or (found[0]["pid"], found[0]["start"]) in known:
         return None
