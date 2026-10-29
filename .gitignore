@@ -10,3 +10,6 @@ __pycache__/
 website/dist/
 website/node_modules/
 website/facts.json
+.desk-test-*/
+.hook-test-*/
+.gate-test-*/

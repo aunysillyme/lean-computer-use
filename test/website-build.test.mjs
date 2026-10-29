@@ -39,9 +39,9 @@ function fixture(t) {
   const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs'];
   inputs.push(...JSON.parse(read(root, 'website/tools.json')).flatMap(tool => tool.source));
   for (const folder of ['docs', 'skills', 'desk', 'hooks', 'agents', 'briefs', 'proof', 'website']) {
-    // Desk tests create and remove .desk-test-* folders while suites run in parallel.
+    // Desk and hook tests create and remove .desk-test-*, .hook-test-* and .gate-test-* folders while suites run in parallel.
     inputs.push(...files(join(root, folder)).filter(file => !file.split('/').some(part =>
-      ['node_modules', 'dist', '__pycache__', '.pytest_cache'].includes(part) || part.startsWith('.desk-test-')))
+      ['node_modules', 'dist', '__pycache__', '.pytest_cache'].includes(part) || /^\.(desk|hook|gate)-test-/.test(part)))
       .map(file => `${folder}/${file}`));
   }
   for (const file of new Set(inputs)) {
