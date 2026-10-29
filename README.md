@@ -115,6 +115,7 @@ npx lean-computer-use install --with-hooks
 This merges marked retry and batching entries into the host's settings while preserving other settings.
 The default installation prints a snippet path and manual merge instructions.
 The retry guard and batch hint support the workflow; the runner enforces the brief's boundaries. Malformed input or an internal error lets the call through.
+The stop gate blocks a turn once while desktop control is still held and names the release tool. Hold control for the user with `npx lean-computer-use keep --reason "<why>"`, or install with `--no-stop-gate` to leave it out. See [the stop gate](docs/cleanup.md#the-stop-gate).
 
 ## Cleanup: nothing keeps running
 
@@ -170,9 +171,9 @@ Regenerate them with `npm run proof` after running the checks.
 <!-- proof:start -->
 | Measurement | Value | Measured | Expires |
 |---|---|---|---|
-| Runtime dependencies | 0 packages | 2026-10-28 | 2027-01-26 |
-| Fixture main median | 200 tokens | 2026-10-28 | 2027-01-26 |
-| Documented desk exits covered | 11 exit codes | 2026-10-28 | 2027-01-26 |
+| Runtime dependencies | 0 packages | 2026-10-29 | 2027-01-27 |
+| Fixture main median | 200 tokens | 2026-10-29 | 2027-01-27 |
+| Documented desk exits covered | 11 exit codes | 2026-10-29 | 2027-01-27 |
 <!-- proof:end -->
 
 ## Common questions

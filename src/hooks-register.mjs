@@ -4,11 +4,17 @@ import { packageRoot, shellQuote, safeRelative } from './paths.mjs';
 
 export const hookMarker = 'lean-computer-use';
 const ours = entry => entry?.marker === hookMarker;
+const gateHook = hook => /\/(touch_hook|stop_gate)\.sh['"]?$/.test(hook?.command || '');
 
-export function registrations(hooksDir, source = packageRoot) {
+/** @param {string} hooksDir @param {string} [source] @param {{stopGate?: boolean}} [options] */
+export function registrations(hooksDir, source = packageRoot, { stopGate = true } = {}) {
   const template = readFileSync(join(source, 'hooks/settings-snippet.json'), 'utf8');
   const result = JSON.parse(template);
   const events = result.hooks || result;
+  if (!stopGate) for (const event of Object.keys(events)) {
+    events[event] = events[event].filter(entry => !(entry.hooks || []).some(gateHook));
+    if (!events[event].length) delete events[event];
+  }
   for (const entries of Object.values(events)) {
     for (const entry of entries) {
       for (const hook of entry.hooks || []) {
@@ -22,12 +28,15 @@ export function registrations(hooksDir, source = packageRoot) {
   return events;
 }
 
-export function mergeHooks(settings, hooksDir, source = packageRoot) {
+export function mergeHooks(settings, hooksDir, source = packageRoot, options = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('Settings must be a JSON object');
   const result = structuredClone(settings);
   result.hooks ??= {};
   if (!result.hooks || typeof result.hooks !== 'object' || Array.isArray(result.hooks)) throw new Error('Settings hooks must be an object');
-  for (const [event, entries] of Object.entries(registrations(hooksDir, source))) {
+  for (const event of Object.keys(result.hooks)) {
+    if (Array.isArray(result.hooks[event])) result.hooks[event] = result.hooks[event].filter(entry => !ours(entry));
+  }
+  for (const [event, entries] of Object.entries(registrations(hooksDir, source, options))) {
     const current = result.hooks[event] || [];
     if (!Array.isArray(current)) throw new Error(`Settings ${event} hooks must be an array`);
     result.hooks[event] = [...current.filter(entry => !ours(entry)), ...entries.map(entry => ({ ...entry, marker: hookMarker }))];
@@ -48,8 +57,8 @@ export function removeHooks(settings) {
   return result;
 }
 
-export function hooksRegistered(settings, hooksDir, source = packageRoot) {
-  const expected = registrations(hooksDir, source);
+export function hooksRegistered(settings, hooksDir, source = packageRoot, options = {}) {
+  const expected = registrations(hooksDir, source, options);
   return Object.entries(expected).every(([event, entries]) => entries.every(entry =>
     (settings?.hooks?.[event] || []).some(actual => ours(actual) && actual.matcher === entry.matcher &&
       JSON.stringify(actual.hooks) === JSON.stringify(entry.hooks))));

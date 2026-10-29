@@ -52,6 +52,17 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "marker": "lean-computer-use",
+        "matcher": "mcp__computer-use__.*|mcp__cua-driver__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"__HOOKS_DIR__/touch_hook.sh\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SubagentStop": [
@@ -65,6 +76,17 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "marker": "lean-computer-use",
+        "matcher": "desk-runner",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"__HOOKS_DIR__/stop_gate.sh\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -75,6 +97,16 @@
             "type": "command",
             "command": "\"__HOOKS_DIR__/cleanup_hook.sh\"",
             "timeout": 20
+          }
+        ]
+      },
+      {
+        "marker": "lean-computer-use",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"__HOOKS_DIR__/stop_gate.sh\"",
+            "timeout": 10
           }
         ]
       }

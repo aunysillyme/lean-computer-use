@@ -28,12 +28,13 @@ function captureAnchors(roots) {
 
 export function parseInstallArgs(args) {
   /** @type {Record<string, any>} */
-  const options = { yes: false, dryRun: false, withHooks: false };
+  const options = { yes: false, dryRun: false, withHooks: false, noStopGate: false };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--yes') options.yes = true;
     else if (arg === '--dry-run' || arg === '--dry') options.dryRun = true;
     else if (arg === '--with-hooks') options.withHooks = true;
+    else if (arg === '--no-stop-gate') options.noStopGate = true;
     else if (arg === '--dir' || arg === '--share') {
       const value = args[++index];
       if (!value || value.startsWith('--')) throw fail(`Missing value for ${arg}`);
@@ -157,7 +158,7 @@ export async function installCommand(args = [], adapters = {}) {
   if (options.withHooks) {
     const path = safePath(roots.dir, 'settings.json');
     const current = existsSync(path) ? readJson(path, 'settings') : {};
-    files.push({ root: 'dir', path: 'settings.json', content: Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source))), mode: existsSync(path) ? lstatSync(path).mode & 0o777 : 0o600, settings: true });
+    files.push({ root: 'dir', path: 'settings.json', content: Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source, { stopGate: !options.noStopGate }))), mode: existsSync(path) ? lstatSync(path).mode & 0o777 : 0o600, settings: true });
   }
   const plan = files.map(file => {
     const path = safePath(roots[file.root], file.path);
@@ -208,7 +209,7 @@ export async function installCommand(args = [], adapters = {}) {
   ensureDirectory(roots.share, created);
   const directories = [...(previous?.directories || []), ...directoriesInside(roots, created)];
   const unique = [...new Map(directories.map(value => [`${value.root}:${value.path}:${value.parents || 0}`, value])).values()];
-  writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: '0.1.1', roots, anchors, files: records, directories: unique }), 0o600);
+  writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version, stopGate: !options.noStopGate, roots, anchors, files: records, directories: unique }), 0o600);
   if (!options.withHooks) {
     write(`Optional hooks: ${join(roots.share, 'hooks/settings-snippet.json')}`);
     write(`Merge hooks into ${join(roots.dir, 'settings.json')} with: lean-computer-use install --dir ${shellQuote(roots.dir)} --share ${shellQuote(roots.share)} --with-hooks --yes`);

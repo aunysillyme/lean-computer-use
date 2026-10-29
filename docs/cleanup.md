@@ -64,18 +64,42 @@ Lease files are mode 0600 in a directory only your user can write, and a lease w
 
 ## Hooks
 
-`npx lean-computer-use install --with-hooks` registers three additive entries, all removed by `uninstall`:
+`npx lean-computer-use install --with-hooks` registers these additive entries, all removed by `uninstall`:
 
 | Event | Scope |
 | --- | --- |
 | SubagentStop, matcher `desk-runner` | The session's leases when the runner stops. |
 | Stop | The session's leases at the end of a turn, unless a subagent is still running. |
 | SessionEnd | The session's leases when the session ends. |
+| PostToolUse `touch_hook`, native MCP tools | Desktop actions and successful releases, per session and subagent. |
+| Stop `stop_gate` | One request to release desktop control the main session still holds. |
+| SubagentStop `stop_gate`, matcher `desk-runner` | One request for the runner's own held control. |
 
 Runners that work in parallel inside one session share its scope: when one stops, the hook ends the session's leases. Give each its own `--run NAME` and clean with `cleanup --run NAME` when their helpers must outlive one another.
 
-Each hook reads `session_id` (and `agent_type` for SubagentStop) from the hook payload, ends that session's leases, and exits 0 on every path, so a session is never blocked. A malformed payload does nothing.
+The lease hooks read `session_id` (and `agent_type` for SubagentStop) from the hook payload and end that session's leases. All hooks exit 0 on every path. Only the stop gate can request a block, through JSON on stdout. A malformed payload does nothing.
+
+## The stop gate
+
+The stop gate comes with `--with-hooks`. PostToolUse `touch_hook` records actions on `mcp__computer-use__*` and `mcp__cua-driver__*` tools and successful releases. A release is `release_full_control` or `app_release` on computer-use, or `end_session` on cua-driver. A failed release releases nothing, and a release with no recorded use starts nothing. Probes such as `list_apps`, `list_windows`, `list_granted_applications` and `request_access` do nothing. State is separate for the main session and each subagent. It stores timestamps, counts, server names and a session hash, never screen text or tool input, in `~/.local/state/lean-computer-use/surfaces` (mode 0700). `LEAN_COMPUTER_USE_SURFACES` moves it. State older than a day is pruned when a hook reads it.
+
+At Stop, an action since the last successful release means control is still held. The gate blocks once and names the release tool for each server used. Apps the user already had open stay open. SubagentStop applies the same check only to `desk-runner` and its own state. Stop waits while the payload lists background tasks.
+
+The gate prints a block decision and never releases control or ends a process itself. On the repeated Stop, including `stop_hook_active: true`, it resolves the request and stays silent, so it blocks at most once for one held stretch. A new action re-arms it. Resolution is not proof of release: keep the checks in the cleanup steps.
+
+If the user must act while control stays held, run:
+
+```sh
+npx lean-computer-use keep --reason "Review the prepared form"
+```
+
+Then name what stays held and why in the reply. `keep` holds every recorded surface of the session, its subagents included. The session comes from the environment; use `--session ID` outside it. A later action clears the hold on that action's main or subagent state.
+
+Install with `--with-hooks --no-stop-gate` to leave out the touch and stop gate registrations; a reinstall with the flag removes earlier ones. The hook files stay installed for inspection. When pasting the snippet by hand, leave out the `touch_hook.sh` and `stop_gate.sh` entries to skip the gate. Malformed input or an unusable state path fails open.
+
 
 ## Check for leftovers
 
 `npx lean-computer-use doctor` lists leased processes still running, with their age and process count, and fails when any exist. Run `cleanup --apply` to end them.
+
+Its `open-surfaces` check also fails when recorded desktop control was last used more than ten minutes ago and never released. Release it, or run `keep --reason` with the owning session ID. Kept control does not count. Run `doctor` by hand after cleanup; nothing watches this state in the background.

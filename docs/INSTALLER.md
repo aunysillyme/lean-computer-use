@@ -7,6 +7,8 @@
 | `npx lean-computer-use` | Preview an install and ask for confirmation. |
 | `npx lean-computer-use install --yes` | Apply the previewed install without a prompt. |
 | `npx lean-computer-use install --with-hooks` | Also merge marked native hook registrations. |
+| `npx lean-computer-use install --with-hooks --no-stop-gate` | Merge the hooks without the touch and stop gate entries. |
+| `npx lean-computer-use keep --reason <text>` | Hold the session's desktop control for the user; see [the stop gate](cleanup.md#the-stop-gate). |
 | `npx lean-computer-use install --dir <path> --share <path>` | Use explicit host and share roots. |
 | `npx lean-computer-use uninstall` | Remove unchanged files recorded in the manifest. |
 | `npx lean-computer-use --uninstall` | Alias for `uninstall`. |
@@ -35,7 +37,7 @@ The installer never installs third-party tools, runs vendor logins, or changes g
 
 ## Hook merge
 
-`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently, including the cleanup entries for SubagentStop, Stop and SessionEnd (see [cleanup](cleanup.md)).
+`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently, including the cleanup entries for SubagentStop, Stop and SessionEnd and the stop gate entries (see [cleanup](cleanup.md)). The manifest records whether the stop gate was chosen, and `doctor` expects that set.
 MCP native tools and Bash have separate matchers.
 The Bash handler checks that the first word of a command segment is `desk`, `desk-read` or `desk-clean` before it applies native behavior.
 Uninstall removes only entries carrying this install's marker.

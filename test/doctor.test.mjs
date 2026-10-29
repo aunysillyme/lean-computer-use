@@ -16,7 +16,7 @@ async function setup(t) {
   write(source, 'hooks/settings-snippet.json', JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', marker: 'lean-computer-use', hooks: [] }] } }));
   const options = { dir: join(root, 'host'), share: join(root, 'share') };
   await installCommand(['--dir', options.dir, '--share', options.share, '--yes', '--with-hooks'], { source, write() {} });
-  return { root, source, options };
+  return { root, source, options, env: { ...process.env, LEAN_COMPUTER_USE_SURFACES: join(root, 'surfaces'), LEAN_COMPUTER_USE_LEASES: join(root, 'leases') } };
 }
 
 function goodRun(name, args) {
@@ -68,7 +68,7 @@ test('doctor external commands resolve from injected PATH', { skip: process.plat
   const directory = join(value.root, 'commands');
   const fake = `#!/usr/bin/env node\nconst args=process.argv.slice(2).join(' '); console.log(args.includes('permissions')?'{}':args.includes('telemetry')?'disabled':'fake-ready');\n`;
   for (const name of ['python3', 'osascript', 'cua-driver']) chmodSync(write(directory, name, fake), 0o755);
-  const result = doctor(value.options, { ...value, platform: 'darwin', env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } });
+  const result = doctor(value.options, { ...value, platform: 'darwin', env: { ...value.env, PATH: `${directory}:${process.env.PATH}` } });
   assert.equal(result.checks.find(check => check.id === 'driver').message, 'fake-ready');
   assert.equal(result.checks.find(check => check.id === 'permissions').status, 'FAIL');
 });
