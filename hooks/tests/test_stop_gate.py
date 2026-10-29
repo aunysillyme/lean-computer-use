@@ -109,7 +109,8 @@ class StopGateContracts(unittest.TestCase):
         self.blocked()
         self.silent("stop_gate", self.stop(stop_hook_active=True))
         use = self.state()["surfaces"]["desktop"]
-        self.assertGreaterEqual(use["lastClose"], use["lastAction"])
+        self.assertEqual(use["resolvedAt"], use["lastAction"])
+        self.assertEqual(use["lastClose"], 0)
         self.silent("stop_gate", self.stop())
         self.touch()
         self.blocked()
@@ -252,6 +253,40 @@ class StopGateContracts(unittest.TestCase):
         self.assertEqual(self.keep("--reason", "review", env=env).returncode, 0)
         self.assertTrue(self.state()["surfaces"]["desktop"]["kept"])
 
+    def test_red_resolved_but_unreleased_control_stays_stale_for_doctor(self):
+        self.touch()
+        self.blocked()
+        self.silent("stop_gate", self.stop())
+        value = self.state()
+        value["surfaces"]["desktop"]["lastAction"] -= 660000
+        value["surfaces"]["desktop"]["resolvedAt"] = value["surfaces"]["desktop"]["lastAction"]
+        self.file().write_text(json.dumps(value))
+        self.file().chmod(0o600)
+        stale = subprocess.run([sys.executable, str(HOOKS / "_surfaces.py"), "stale"], env=self.env,
+                               capture_output=True, text=True)
+        self.assertEqual(json.loads(stale.stdout)["sessions"], 1)
+        self.touch(self.action("app_release"))
+        stale = subprocess.run([sys.executable, str(HOOKS / "_surfaces.py"), "stale"], env=self.env,
+                               capture_output=True, text=True)
+        self.assertEqual(json.loads(stale.stdout)["sessions"], 0)
+
+    def test_red_loose_mode_state_and_symlinked_ancestor_fail_open(self):
+        self.touch()
+        self.file().chmod(0o644)
+        self.silent("stop_gate", self.stop())
+        self.file().chmod(0o600)
+        link = Path(self.temporary.name) / "link"
+        link.symlink_to(Path(self.temporary.name), target_is_directory=True)
+        self.env["LEAN_COMPUTER_USE_SURFACES"] = str(link / "surfaces")
+        self.silent("stop_gate", self.stop())
+        self.silent("touch_hook", self.action())
+        self.assertEqual(self.keep("--reason", "x", "--session", "session").stdout, "")
+
+    def test_red_nul_in_identifiers_is_refused(self):
+        self.touch(self.action(session_id="a\u0000b"))
+        self.touch(self.action(session_id="a", agent_id="b\u0000c"))
+        self.assertFalse(self.dir.exists())
+
     def test_stale_counts_sessions_and_ignores_kept_or_recent(self):
         stale = [sys.executable, str(HOOKS / "_surfaces.py"), "stale"]
         count = lambda: json.loads(subprocess.run(stale, env=self.env, capture_output=True, text=True).stdout)["sessions"]
@@ -263,6 +298,7 @@ class StopGateContracts(unittest.TestCase):
             value = self.state(agent)
             value["surfaces"]["desktop"]["lastAction"] -= 660000
             self.file(agent).write_text(json.dumps(value))
+            self.file(agent).chmod(0o600)
         self.assertEqual(count(), 1)
         self.assertEqual(self.keep("--reason", "review", "--session", "session").returncode, 0)
         self.assertEqual(count(), 0)
