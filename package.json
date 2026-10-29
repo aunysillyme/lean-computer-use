@@ -1,6 +1,6 @@
 {
   "name": "lean-computer-use",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Background Mac computer control for AI agents: desk tools, a fresh runner subagent, retry guards and a transcript token meter, installed with one command",
   "type": "module",
   "bin": { "lean-computer-use": "bin/lean-computer-use.mjs" },

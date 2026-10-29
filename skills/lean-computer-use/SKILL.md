@@ -32,6 +32,7 @@ Use keys and typing before element clicks, keep actions in the background, test 
 Use one case-insensitive substring per filtered read. Choose a shared substring such as `AXStaticText` for several fields; use two reads when two fields share none.
 Each read prints matching lines and saves the full read to the printed file for inspection of any other line. See [filtered reads](methods/filtered-reads.md).
 Copy the saved full read to the granted handoff location before cleanup removes run state.
+End the control the run took with `release_full_control`, `app_release` or `end_session`; see [cleanup with proof](methods/cleanup-with-proof.md).
 The main session opens that evidence and checks the done signal.
 
 ## Choose a method

@@ -5,6 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-29
+
+### Added
+
+- PostToolUse touch hook records native desktop actions and successful releases per session and subagent.
+- Stop and runner SubagentStop gate requests the release once per held stretch, with the exact release tool and the `keep` command.
+- `keep --reason` command holds desktop control for the user, including the session's subagents.
+- `doctor` open-surfaces check fails for desktop control held more than ten minutes and never released.
+- `--no-stop-gate` install flag leaves out the touch and stop gate registrations. The gate comes with `--with-hooks` by default.
+
+### Changed
+
+- Cleanup guide, runner and skill end the desktop control the run took before the app cleanup.
+- The install manifest records the installed package version.
+
 ## [0.1.1] - 2026-10-28
 
 ### Added
@@ -33,6 +48,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Installer, owned-file uninstall, environment doctor and transcript measurement.
 - Package proof, privacy checks and repository workflows.
 
-[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aunysillyme/lean-computer-use/releases/tag/v0.1.0

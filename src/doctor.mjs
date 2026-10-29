@@ -25,6 +25,20 @@ function leftovers(env, source, run) {
   } catch { return [id, 'FAIL', 'the lease list could not be read, so leftover processes could not be checked', fix]; }
 }
 
+/** Desktop control left held: the stop gate's own state module decides what counts. */
+/** @returns {[string, string, string, string]} */
+function openSurfaces(env, source, run) {
+  const id = 'open-surfaces', fix = 'Release the control (release_full_control, app_release or end_session), or run lean-computer-use keep --reason "<why>" --session ID.';
+  const directory = env.LEAN_COMPUTER_USE_SURFACES || join(env.XDG_STATE_HOME || join(env.HOME || homedir(), '.local/state'), 'lean-computer-use/surfaces');
+  try {
+    if (!existsSync(directory) || !readdirSync(directory).some(name => /^[0-9a-f]{24}\.json$/.test(name))) return [id, 'PASS', 'no stale held desktop control recorded', fix];
+    const result = run('python3', [join(source, 'hooks/_surfaces.py'), 'stale']);
+    const sessions = JSON.parse(result.stdout).sessions;
+    if (!Number.isInteger(sessions)) throw new Error('unreadable');
+    return sessions ? [id, 'FAIL', `desktop control left held for more than ten minutes by ${sessions} session(s)`, fix] : [id, 'PASS', 'no stale held desktop control recorded', fix];
+  } catch { return [id, 'FAIL', 'desktop control state could not be checked', fix]; }
+}
+
 /** @param {{dir?: string, share?: string}} options @param {Record<string, any>} adapters */
 export function doctor(options = {}, adapters = {}) {
   const env = adapters.env || process.env;
@@ -85,13 +99,16 @@ export function doctor(options = {}, adapters = {}) {
   try {
     const path = safePath(roots.dir, 'settings.json');
     const settings = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
-    const registered = hooksRegistered(settings, join(roots.share, 'hooks'), source);
+    let stopGate = true;
+    try { stopGate = JSON.parse(readFileSync(safePath(roots.share, 'install-manifest.json'), 'utf8')).stopGate !== false; } catch { /* No manifest: expect the default registrations. */ }
+    const registered = hooksRegistered(settings, join(roots.share, 'hooks'), source, { stopGate });
     add('hooks', registered ? 'PASS' : 'WARN', registered ? 'optional hooks are registered' : 'optional hooks are not registered', 'Run lean-computer-use install --with-hooks --yes with the same --dir and --share.');
   } catch {
     add('hooks', 'WARN', 'optional hook registration could not be read', 'Review settings.json, then run lean-computer-use install --with-hooks --yes.');
   }
   const [leftId, leftStatus, leftMessage, leftFix] = leftovers(env, source, run);
   add(leftId, leftStatus, leftMessage, leftFix);
+  add(...openSurfaces(env, source, run));
   return { checks, exitCode: checks.some(check => check.status === 'FAIL') ? 1 : 0 };
 }
 

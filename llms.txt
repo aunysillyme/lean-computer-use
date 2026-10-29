@@ -8,28 +8,28 @@ Computer use for AI agents, with Claude Code as the supported host.
 
 ## Docs
 
-- [lean-computer-use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/README.md): Start here.
-- [Documentation](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/README.md): Choose a guide.
-- [Install](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/install.md): Install and remove the package.
-- [Installer contract](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/INSTALLER.md): Read options and file ownership.
-- [Cleanup: nothing keeps running](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/cleanup.md): End leased processes after a run.
-- [Install cua-driver carefully](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/cua-driver-install.md): Prepare native app control.
-- [Native app method](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/METHOD.md): Follow the process.
-- [Stack card](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/STACK.md): Read the stack card.
+- [lean-computer-use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/README.md): Start here.
+- [Documentation](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/README.md): Choose a guide.
+- [Install](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/install.md): Install and remove the package.
+- [Installer contract](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/INSTALLER.md): Read options and file ownership.
+- [Cleanup: nothing keeps running](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/cleanup.md): End leased processes after a run.
+- [Install cua-driver carefully](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/cua-driver-install.md): Prepare native app control.
+- [Native app method](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/METHOD.md): Follow the process.
+- [Stack card](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/STACK.md): Read the stack card.
 
 ## Reference
 
-- [Lean computer use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/SKILL.md): Activate the method.
-- [Run one named app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/desk-run.md): Read this method.
-- [Chain actions in the same app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/same-app-chaining.md): Read this method.
-- [Keep app work in the background](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/background-only.md): Read this method.
-- [Read fields in one packet](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/filtered-reads.md): Read this method.
-- [Clean up with proof](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/cleanup-with-proof.md): Read this method.
-- [Verify the saved evidence](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/verify.md): Read this method.
-- [Resolve failures within the brief](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/failure-modes.md): Read this method.
-- [Choose the app worker](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/skills/lean-computer-use/methods/cheap-helper-or-subagent.md): Read this method.
-- [Agent instructions](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/AGENTS.md): Use and contribute.
-- [Desk commands](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/desk/README.md): Run and verify desk tools.
+- [Lean computer use](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/SKILL.md): Activate the method.
+- [Run one named app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/desk-run.md): Read this method.
+- [Chain actions in the same app](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/same-app-chaining.md): Read this method.
+- [Keep app work in the background](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/background-only.md): Read this method.
+- [Read fields in one packet](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/filtered-reads.md): Read this method.
+- [Clean up with proof](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/cleanup-with-proof.md): Read this method.
+- [Verify the saved evidence](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/verify.md): Read this method.
+- [Resolve failures within the brief](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/failure-modes.md): Read this method.
+- [Choose the app worker](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/skills/lean-computer-use/methods/cheap-helper-or-subagent.md): Read this method.
+- [Agent instructions](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/AGENTS.md): Use and contribute.
+- [Desk commands](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/desk/README.md): Run and verify desk tools.
 
 <!-- set:start -->
 ## Part of a set
@@ -43,7 +43,7 @@ Computer use for AI agents, with Claude Code as the supported host.
 
 ## Optional
 
-- [Credits](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/CREDITS.md): See upstream sources.
-- [Provenance](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/docs/PROVENANCE.md): Trace borrowed techniques.
-- [Contributing](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.1/CONTRIBUTING.md): Improve the package.
+- [Credits](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/CREDITS.md): See upstream sources.
+- [Provenance](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/docs/PROVENANCE.md): Trace borrowed techniques.
+- [Contributing](https://github.com/aunysillyme/lean-computer-use/blob/v0.1.2/CONTRIBUTING.md): Improve the package.
 - [npm package](https://www.npmjs.com/package/lean-computer-use): Package and command.

@@ -9,7 +9,7 @@ test('CLI help and version run without installation', async () => {
   assert.equal(await main(['--help'], { write: value => lines.push(value) }), 0);
   assert.match(lines[0], /--with-hooks/);
   assert.equal(await main(['--version'], { write: value => lines.push(value) }), 0);
-  assert.equal(lines[1], '0.1.1');
+  assert.equal(lines[1], '0.1.2');
 });
 
 test('CLI rejects unknown commands and malformed command options', async () => {
