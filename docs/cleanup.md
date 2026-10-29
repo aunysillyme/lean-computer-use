@@ -85,7 +85,7 @@ The stop gate comes with `--with-hooks`. PostToolUse `touch_hook` records action
 
 At Stop, an action since the last successful release means control is still held. The gate blocks once and names the release tool for each server used. Apps the user already had open stay open. SubagentStop applies the same check only to `desk-runner` and its own state. Stop waits while the payload lists background tasks.
 
-The gate prints a block decision and never releases control or ends a process itself. On the repeated Stop, including `stop_hook_active: true`, it resolves the request and stays silent, so it blocks at most once for one held stretch. A new action re-arms it. Resolution is not proof of release: keep the checks in the cleanup steps.
+The gate prints a block decision and never releases control or ends a process itself. On the repeated Stop, including `stop_hook_active: true`, it resolves the request and stays silent, so it blocks at most once for one held stretch. A new action re-arms it. Resolution is not proof of release: the state still records the control as held, so `doctor` reports it, and the checks in the cleanup steps still apply. A state path through a symlink, or a state file or directory with another owner or a looser mode, fails open.
 
 If the user must act while control stays held, run:
 

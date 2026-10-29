@@ -36,8 +36,8 @@ def digest(value):
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-def valid_session(value):
-    return isinstance(value, str) and 0 < len(value) <= 200
+def valid_id(value):
+    return isinstance(value, str) and 0 < len(value) <= 200 and "\0" not in value
 
 
 def surfaces_dir(env=None):
@@ -48,22 +48,34 @@ def surfaces_dir(env=None):
     return Path(base) / "lean-computer-use" / "surfaces"
 
 
+def private(info, mode):
+    return info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == mode
+
+
 def checked_dir(create):
-    path = surfaces_dir()
+    path = Path(os.path.abspath(surfaces_dir()))
+    for ancestor in reversed(path.parents):
+        if ancestor.is_symlink():
+            raise OSError("surface state path must not pass through a symlink")
     if create:
         path.mkdir(parents=True, mode=0o700, exist_ok=True)
     elif not os.path.lexists(path):
         return None
     info = path.lstat()
-    if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
-            or stat.S_IMODE(info.st_mode) != 0o700):
+    if not stat.S_ISDIR(info.st_mode) or not private(info, 0o700):
         raise OSError("surface state directory must be owned by this user and mode 0700")
     return path
 
 
 def is_dirty(use):
+    """Control used since its last successful release and not held for the user."""
     return (isinstance(use, dict) and not use.get("kept")
             and isinstance(use.get("lastAction"), int) and use["lastAction"] > (use.get("lastClose") or 0))
+
+
+def is_pending(use):
+    """Dirty control the gate has not yet resolved for this stretch."""
+    return is_dirty(use) and (use.get("resolvedAt") or 0) < use["lastAction"]
 
 
 def read(path):
@@ -72,8 +84,9 @@ def read(path):
     except FileNotFoundError:
         return {}
     with os.fdopen(fd, "r", encoding="utf-8") as handle:
-        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-            raise OSError("surface state must be a regular file")
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or not private(info, 0o600):
+            raise OSError("surface state must be a regular file owned by this user with mode 0600")
         value = json.load(handle)
     return value if isinstance(value, dict) else {}
 
@@ -97,6 +110,9 @@ def locked(create=True):
         return
     fd = os.open(root / ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "a+") as lock:
+        info = os.fstat(lock.fileno())
+        if not stat.S_ISREG(info.st_mode) or not private(info, 0o600):
+            raise OSError("surface lock must be a regular file owned by this user with mode 0600")
         fcntl.flock(lock, fcntl.LOCK_EX)
         cutoff = time.time() - DAY_MS / 1000
         for entry in root.iterdir():
@@ -116,7 +132,7 @@ def touch(payload):
         return
     match = SERVER.fullmatch(payload.get("tool_name") or "") if isinstance(payload.get("tool_name"), str) else None
     session, agent = payload.get("session_id"), payload.get("agent_id")
-    if not match or not valid_session(session) or (agent is not None and (not isinstance(agent, str) or not agent)):
+    if not match or not valid_id(session) or (agent is not None and not valid_id(agent)):
         return
     server, name = match[1], match[2]
     close = name in CLOSES
@@ -163,13 +179,13 @@ def block_reason(servers):
 
 def gate(payload):
     """Stop and runner SubagentStop: block once per dirty stretch, then resolve silently."""
-    if not isinstance(payload, dict) or not valid_session(payload.get("session_id")):
+    if not isinstance(payload, dict) or not valid_id(payload.get("session_id")):
         return None
     session, agent = payload["session_id"], None
     event = payload.get("hook_event_name")
     if event == "SubagentStop":
         agent = payload.get("agent_id")
-        if payload.get("agent_type") != RUNNER or not isinstance(agent, str) or not agent:
+        if payload.get("agent_type") != RUNNER or not valid_id(agent):
             return None
     elif event == "Stop":
         tasks = payload.get("background_tasks")
@@ -182,16 +198,16 @@ def gate(payload):
             return None
         path = key_file(root, session, agent)
         state = read(path)
-        dirty = [use for name, use in (state.get("surfaces") or {}).items() if name == "desktop" and is_dirty(use)]
+        dirty = [use for name, use in (state.get("surfaces") or {}).items() if name == "desktop" and is_pending(use)]
         if not dirty:
             return None
-        moment = now_ms()
         if payload.get("stop_hook_active") is True or "blockedAt" in state:
+            # Silence the gate for this stretch only; lastClose still records the last real release.
             for use in dirty:
-                use["lastClose"] = max(moment, use["lastAction"])
+                use["resolvedAt"] = use["lastAction"]
             write(path, state)
             return None
-        state["blockedAt"] = moment
+        state["blockedAt"] = now_ms()
         write(path, state)
         servers = {server for use in dirty for server in use.get("servers") or []} or set(CLOSE_TOOLS)
         return {"decision": "block", "reason": block_reason(servers)}
@@ -269,7 +285,7 @@ def main(argv=None):
     if not reason:
         print("keep requires --reason TEXT.", file=sys.stderr)
         return 2
-    if not valid_session(session):
+    if not valid_id(session):
         print("keep requires --session ID or a session environment variable (at most 200 characters).", file=sys.stderr)
         return 2
     print(f"keep: {keep(reason, session)} surface(s) held: {reason}")
