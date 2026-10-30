@@ -135,7 +135,7 @@ class StopGateContracts(unittest.TestCase):
         probes = ["list_apps", "list_windows", "app_list_windows", "list_granted_applications",
                   "request_access", "status", "list_tools"]
         payloads = [self.action(name) for name in probes] + [self.action(name, "cua-driver") for name in probes]
-        payloads += [self.action(tool_name="mcp__claude-in-chrome__navigate"), self.action(tool_name="Bash")]
+        payloads += [self.action(tool_name="mcp__example-browser__navigate"), self.action(tool_name="Bash")]
         for payload in payloads:
             self.touch(payload)
         self.assertFalse(self.dir.exists())
