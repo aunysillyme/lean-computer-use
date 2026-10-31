@@ -1,8 +1,8 @@
 # Desk commands
 
-These Python tools keep native Mac app actions in one small helper context. They resolve a bundle id to a process and usable window, inject those ids, save the full driver response, and return a short result. Python uses only its standard library. Native app control requires macOS, `cua-driver`, `open`, `osascript`, Accessibility permission, and Screen Recording permission.
+These Python tools keep native Mac app actions in one small helper context. They resolve a bundle id to a process and usable window, inject those ids, save the full driver response, and return a short result. Python uses only its standard library. Native app control requires macOS, `CuaDriver.app`, `cua-driver`, `osascript`, Accessibility permission, and Screen Recording permission.
 
-The runner calls `desk`, then a filtered `desk-read`, then `desk-clean`. Each command imports `_resolve.py` beside itself. The driver is checked on demand and started in the background through `/Applications/CuaDriver.app` when needed. The calling runner checks results and reports cleanup; `desk-reap` and the registered hooks end whatever the run leased (see below).
+The runner calls `desk`, then a filtered `desk-read`, then `desk-clean`. Each command imports `_resolve.py` beside itself. The driver is checked on demand and its app-bundle executable is started in the background when needed. Its exact PID is leased before readiness polling. The calling runner checks results and reports cleanup; `desk-reap` and the registered hooks end whatever the run leased (see below).
 
 ## Run and verify
 

@@ -47,10 +47,10 @@ Keep credentials and other sensitive content out of app briefs.
 
 ## Use and close
 
-`desk` starts the app-backed daemon on demand in the background, retaining its macOS permission identity.
+`desk` starts the executable inside `CuaDriver.app` on demand and leases its PID before waiting for readiness. Verify foreground `serve` behavior and macOS permission identity against your installed vendor build.
 After a run, call `desk-clean <bundle> --app-name <Name>`.
 Add `--launched-by-run` only when the initial snapshot showed the app closed and this run launched it.
-This requests a gentle quit, removes owned desk state and stops the driver when no live sessions remain.
+This requests a gentle quit, removes owned desk state and stops a provably leased driver when no live sessions remain. A driver started independently stays running.
 An app that remains running is a pending cleanup result; keep its unsaved work safe and report it.
 
 Use `npx lean-computer-use doctor` to check the installation and receive one-line fixes.

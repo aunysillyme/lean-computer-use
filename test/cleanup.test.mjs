@@ -102,9 +102,11 @@ test('doctor reports invalid leases as unknown', { skip }, t => {
   const env = { ...process.env, LEAN_COMPUTER_USE_LEASES: leases };
   const answer = JSON.stringify({ candidates: [], refused: [], invalid: 1 });
   const result = doctor({ dir: join(root, 'host'), share: join(root, 'share') }, {
-    env, platform: 'linux', run: () => ({ status: 0, stdout: answer, stderr: '' })
+    env, platform: 'linux', run: () => ({ status: 1, stdout: answer, stderr: '' })
   });
   const check = result.checks.find(item => item.id === 'leftover-processes');
-  assert.equal(check.status, 'FAIL');
-  assert.match(check.message, /status is unknown/);
+  assert.equal(check.status, 'UNKNOWN');
+  assert.equal(result.exitCode, 1);
+  assert.match(check.message, /1 invalid lease file/);
+  assert.match(check.message, /status is unknown and needs review/);
 });

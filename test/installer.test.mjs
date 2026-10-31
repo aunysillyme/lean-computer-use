@@ -238,6 +238,164 @@ test('preexisting identical package files stay outside uninstall ownership', asy
   assert.equal(readFileSync(path, 'utf8'), '# Sample skill\n');
 });
 
+for (const [stage, occurrence] of [['pending', 1], ['pending', 3], ['backup', 1], ['payload', 1], ['payload', 4], ['complete', 1]]) {
+  test(`interrupted install after ${stage} write ${occurrence} can be uninstalled`, async t => {
+    const value = setup(t);
+    const original = write(value.dir, 'skills/lean-computer-use/SKILL.md', 'User original\n');
+    const settings = write(value.dir, 'settings.json', '{"theme":"light"}\n');
+    const lines = [];
+    let count = 0;
+    const adapters = { ...value.adapters, write: line => lines.push(line), afterWrite(kind) {
+      if (kind === stage && ++count === occurrence) throw new Error('Synthetic write failure');
+    } };
+    await assert.rejects(installCommand([...value.args, '--yes', '--with-hooks'], adapters), /Synthetic write failure/);
+    const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
+    assert.equal(manifest.state, stage === 'complete' ? undefined : 'pending');
+    assert.ok(lines.some(line => line.startsWith('Install incomplete. Recover owned changes with:')));
+    if (manifest.state === 'pending') {
+      const interrupted = snapshot(value.state);
+      await assert.rejects(installCommand([...value.args, '--yes'], value.adapters), /interrupted install needs recovery/);
+      assert.deepEqual(snapshot(value.state), interrupted);
+    }
+    assert.equal(await uninstallCommand(value.args, value.adapters), 0);
+    assert.equal(readFileSync(original, 'utf8'), 'User original\n');
+    assert.equal(readFileSync(settings, 'utf8'), '{"theme":"light"}\n');
+    assert.equal(existsSync(join(value.share, 'install-manifest.json')), false);
+    assert.equal(existsSync(join(value.share, 'desk/desk')), false);
+    if (stage === 'backup') assert.equal(readFileSync(`${original}.bak`, 'utf8'), 'User original\n');
+  });
+}
+
+test('interrupted upgrade uninstalls both previous and replacement payloads', async t => {
+  const value = setup(t);
+  const original = write(value.dir, 'skills/lean-computer-use/SKILL.md', 'User original\n');
+  const before = snapshot(value.state);
+  await installCommand([...value.args, '--yes'], value.adapters);
+  writeFileSync(join(value.source, 'skills/lean-computer-use/SKILL.md'), 'Updated skill\n');
+  writeFileSync(join(value.source, 'skills/lean-computer-use/methods/verify.md'), 'Updated method\n');
+  let count = 0;
+  await assert.rejects(installCommand([...value.args, '--yes'], { ...value.adapters, afterWrite(kind) {
+    if (kind === 'pending' && ++count === 5) throw new Error('Synthetic upgrade failure');
+  } }), /Synthetic upgrade failure/);
+  const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
+  assert.equal(manifest.state, 'pending');
+  assert.ok(manifest.files.some(entry => entry.priorHash && entry.hash !== entry.priorHash));
+  await uninstallCommand(value.args, value.adapters);
+  assert.equal(readFileSync(original, 'utf8'), 'User original\n');
+  assert.deepEqual(snapshot(value.state), before);
+});
+
+test('partial install recovery keeps edits and all earlier backups', async t => {
+  const value = setup(t);
+  const original = write(value.dir, 'skills/lean-computer-use/SKILL.md', 'First original\n');
+  await installCommand([...value.args, '--yes'], value.adapters);
+  writeFileSync(original, 'Later user edit\n');
+  await assert.rejects(installCommand([...value.args, '--yes'], { ...value.adapters, afterWrite(kind) {
+    if (kind === 'payload') throw new Error('Synthetic write failure');
+  } }), /Synthetic write failure/);
+  writeFileSync(original, 'Edited during recovery\n');
+  await uninstallCommand(value.args, value.adapters);
+  assert.equal(readFileSync(original, 'utf8'), 'Edited during recovery\n');
+  assert.equal(readFileSync(`${original}.bak`, 'utf8'), 'First original\n');
+  assert.equal(readFileSync(`${original}.bak.1`, 'utf8'), 'Later user edit\n');
+});
+
+test('partial install before a settings write preserves its original bytes', async t => {
+  const value = setup(t);
+  const settings = write(value.dir, 'settings.json', '{"theme":"light"}\n');
+  await assert.rejects(installCommand([...value.args, '--yes', '--with-hooks'], { ...value.adapters, afterWrite(kind, path) {
+    if (kind === 'backup' && path === `${settings}.bak`) throw new Error('Synthetic write failure');
+  } }), /Synthetic write failure/);
+  await uninstallCommand(value.args, value.adapters);
+  assert.equal(readFileSync(settings, 'utf8'), '{"theme":"light"}\n');
+  assert.equal(readFileSync(`${settings}.bak`, 'utf8'), '{"theme":"light"}\n');
+});
+
+test('partial install with overlapping roots has a recoverable pending manifest', async t => {
+  const value = setup(t);
+  const common = join(value.state, 'common');
+  const args = ['--dir', common, '--share', join(common, 'data')];
+  const before = snapshot(value.state);
+  await assert.rejects(installCommand([...args, '--yes'], { ...value.adapters, afterWrite(kind) {
+    if (kind === 'pending') throw new Error('Synthetic write failure');
+  } }), /Synthetic write failure/);
+  await uninstallCommand(args, value.adapters);
+  assert.deepEqual(snapshot(value.state), before);
+});
+
+async function interruptedStage(value, kind, phase, occurrence = 1) {
+  let saved;
+  let count = 0;
+  await assert.rejects(installCommand([...value.args, '--yes'], { ...value.adapters, [phase](current, path) {
+    if (current === kind && ++count === occurrence) {
+      saved = { path, content: readFileSync(path) };
+      throw new Error('Synthetic stage interruption');
+    }
+  } }), /Synthetic stage interruption/);
+  assert.ok(saved);
+  // Recreate the interrupted stage: a process kill skips writeChecked's finally cleanup.
+  writeFileSync(saved.path, saved.content);
+  const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
+  assert.equal(manifest.state, 'pending');
+  assert.ok(manifest.staging.some(stage => join(value[stage.root], stage.path) === saved.path));
+  return saved;
+}
+
+for (const kind of ['backup', 'payload']) {
+  for (const phase of ['afterStage', 'beforeRename']) {
+    test(`pending manifest recovers ${kind} staging interrupted at ${phase}`, async t => {
+      const value = setup(t);
+      if (kind === 'backup') write(value.dir, 'skills/lean-computer-use/SKILL.md', 'User original\n');
+      const before = snapshot(value.state);
+      const stage = await interruptedStage(value, kind, phase, kind === 'payload' ? 2 : 1);
+      const interrupted = snapshot(value.state);
+      await uninstallCommand([...value.args, '--dry-run'], value.adapters);
+      assert.deepEqual(snapshot(value.state), interrupted);
+      await uninstallCommand(value.args, value.adapters);
+      assert.equal(existsSync(stage.path), false);
+      assert.deepEqual(snapshot(value.state), before);
+    });
+  }
+}
+
+test('staging changed after interruption keeps its journal for review', async t => {
+  const value = setup(t);
+  const stage = await interruptedStage(value, 'payload', 'afterStage');
+  writeFileSync(stage.path, 'User changed staging\n');
+  const changed = snapshot(value.state);
+  await assert.rejects(uninstallCommand(value.args, value.adapters), /Pending staging needs review/);
+  assert.deepEqual(snapshot(value.state), changed);
+  writeFileSync(stage.path, stage.content);
+  await uninstallCommand(value.args, value.adapters);
+  assert.deepEqual(snapshot(value.state), []);
+});
+
+test('staging with an unavailable matching source keeps its journal for review', async t => {
+  const value = setup(t);
+  await interruptedStage(value, 'payload', 'beforeRename');
+  const source = join(value.source, 'skills/lean-computer-use/SKILL.md');
+  const original = readFileSync(source);
+  writeFileSync(source, 'Different package version\n');
+  const before = snapshot(value.state);
+  await assert.rejects(uninstallCommand(value.args, value.adapters), /Pending staging needs review/);
+  assert.deepEqual(snapshot(value.state), before);
+  writeFileSync(source, original);
+  await uninstallCommand(value.args, value.adapters);
+  assert.deepEqual(snapshot(value.state), []);
+});
+
+test('uninstall refuses a staging path that names a payload instead of a temporary file', async t => {
+  const value = setup(t);
+  await interruptedStage(value, 'payload', 'beforeRename');
+  const path = join(value.share, 'install-manifest.json');
+  const manifest = JSON.parse(readFileSync(path, 'utf8'));
+  manifest.staging[0].path = manifest.staging[0].target;
+  writeFileSync(path, JSON.stringify(manifest));
+  const before = snapshot(value.state);
+  await assert.rejects(uninstallCommand(value.args, value.adapters), /Invalid install staging entry/);
+  assert.deepEqual(snapshot(value.state), before);
+});
+
 test('uninstall rejects absent manifest, traversal, absolute entries and symlinks', async t => {
   const value = setup(t);
   await assert.rejects(uninstallCommand(value.args, value.adapters), error => error.exitCode === 2 && error.message.includes('install-manifest.json'));

@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import signal
 import stat
 import subprocess
 import sys
@@ -530,7 +531,7 @@ def test_clean_own_files_removed_foreign_files_directories_symlinks_kept(cleanup
     linked.symlink_to(foreign[0])
     result = cleanup.run("desk-clean")
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "cleanup: app=left-open state_files_removed=2 remaining_own_files=0 driver=stopped\n"
+    assert result.stdout == "cleanup: app=left-open state_files_removed=2 remaining_own_files=0 driver=left-running-unleased\n"
     assert not own.exists() and not (cleanup.state / "apps.json").exists()
     assert all(path.read_text() == "keep" for path in foreign)
     assert directory.is_dir() and linked.is_symlink()
@@ -545,13 +546,13 @@ def test_clean_preserves_other_bundle_cache_entries(cleanup):
     assert result.returncode == 0, result.stderr
     assert json.loads(cache.read_text()) == {"com.other.app": other}
     assert stat.S_IMODE(cache.stat().st_mode) == 0o600
-    assert result.stdout == "cleanup: app=left-open state_files_removed=0 remaining_own_files=1 driver=stopped\n"
+    assert result.stdout == "cleanup: app=left-open state_files_removed=0 remaining_own_files=1 driver=left-running-unleased\n"
 
 
 def test_clean_launched_by_run_quits_with_explicit_name(cleanup):
     result = cleanup.run("desk-clean", "--app-name", "Calculator", "--launched-by-run")
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "cleanup: app=quit state_files_removed=1 remaining_own_files=0 driver=stopped\n"
+    assert result.stdout == "cleanup: app=quit state_files_removed=1 remaining_own_files=0 driver=left-running-unleased\n"
     assert cleanup_calls(cleanup) == [
         {"tool": "osascript", "args": ["-e", 'quit app "Calculator"']},
         {"tool": "osascript-running", "args": ["-e", 'application "Calculator" is running']},
@@ -600,7 +601,7 @@ def test_clean_still_running_exits_three_and_removes_state(cleanup):
     result = cleanup.run("desk-clean", "--launched-by-run")
     assert result.returncode == 3, result.stderr
     assert time.monotonic() - started < 2
-    assert result.stdout == "cleanup: app=still-running state_files_removed=1 remaining_own_files=0 driver=stopped\n"
+    assert result.stdout == "cleanup: app=still-running state_files_removed=1 remaining_own_files=0 driver=left-running-unleased\n"
     assert result.stderr == ""
     assert not (cleanup.state / "apps.json").exists()
 
@@ -716,7 +717,7 @@ def test_clean_is_idempotent_with_missing_state_directory(cleanup):
     cleanup.env["DESK_STATE_DIR"] = str(cleanup.root / "absent-state")
     result = cleanup.run("desk-clean")
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "cleanup: app=left-open state_files_removed=0 remaining_own_files=0 driver=stopped\n"
+    assert result.stdout == "cleanup: app=left-open state_files_removed=0 remaining_own_files=0 driver=left-running-unleased\n"
     assert not Path(cleanup.env["DESK_STATE_DIR"]).exists()
 
 
@@ -724,17 +725,45 @@ def test_clean_entry_point_is_executable():
     assert os.access(DESK_DIR / "desk-clean", os.X_OK)
 
 
+def _driver_cli(desktop, monkeypatch, capsys, script, *args):
+    import runpy
+    from types import SimpleNamespace
+    import _lease
+
+    for key, value in desktop.env.items():
+        monkeypatch.setenv(key, value)
+    resolver = _resolver(monkeypatch, desktop.root)
+    executable = desktop.root / "fake-app-executable"
+    monkeypatch.setattr(resolver, "driver_executable", lambda: executable)
+    original_popen = subprocess.Popen
+    launches = []
+
+    def start(command, **kwargs):
+        if command != [str(executable), "serve"]:
+            return original_popen(command, **kwargs)
+        launches.append(command)
+        if desktop.responses.get("_launch_fails"):
+            raise OSError("synthetic launch failure")
+        if desktop.responses.get("_open_starts", True):
+            Path(desktop.env["FAKE_DRIVER_STATE"]).write_text("running")
+        return SimpleNamespace(pid=6789)
+
+    monkeypatch.setattr(resolver.subprocess, "Popen", start)
+    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: {"pid": pid})
+    monkeypatch.setattr(sys, "argv", [str(DESK_DIR / script), BUNDLE, *args])
+    with pytest.raises(SystemExit) as exited:
+        runpy.run_path(str(DESK_DIR / script), run_name="__main__")
+    output = capsys.readouterr()
+    return SimpleNamespace(returncode=exited.value.code, stdout=output.out, stderr=output.err, launches=launches)
+
+
 @pytest.mark.parametrize("script", ["desk", "desk-read"])
-def test_driver_starts_on_demand_through_app_with_private_marker(desktop, script):
+def test_driver_starts_on_demand_through_app_with_private_marker(desktop, script, monkeypatch, capsys):
     desktop.configure_driver(_driver_running=False)
     args = ("click", "{}") if script == "desk" else ("AXStaticText",)
-    result = desktop.run(script, *args)
+    result = _driver_cli(desktop, monkeypatch, capsys, script, *args)
     assert result.returncode == 0, result.stderr
-    calls = desktop.driver_calls()
-    assert calls[:3] == [["cua-driver", "status"],
-                         ["open", "-g", "-a", "/Applications/CuaDriver.app", "--args", "serve"],
-                         ["cua-driver", "status"]]
-    assert sum(call[0] == "open" for call in calls) == 1
+    assert len(result.launches) == 1
     marker = desktop.state / "driver-started"
     assert marker.is_file() and stat.S_IMODE(marker.stat().st_mode) == 0o600
 
@@ -748,30 +777,30 @@ def test_driver_already_running_does_not_start_app(desktop, script):
     assert not (desktop.state / "driver-started").exists()
 
 
-def test_driver_open_failure_exits_two_without_desktop_calls(desktop):
-    desktop.configure_driver(_driver_running=False, _open_exit=7)
-    result = desktop.run("desk", "click", "{}")
+def test_driver_open_failure_exits_two_without_desktop_calls(desktop, monkeypatch, capsys):
+    desktop.configure_driver(_driver_running=False, _launch_fails=True)
+    result = _driver_cli(desktop, monkeypatch, capsys, "desk", "click", "{}")
     assert result.returncode == 2
     assert len(result.stderr.splitlines()) == 1
-    assert "open exited 7" in result.stderr
+    assert "app executable unavailable" in result.stderr
     assert not desktop.log.exists()
 
 
-def test_driver_start_timeout_exits_two_without_desktop_calls(desktop):
+def test_driver_start_timeout_exits_two_without_desktop_calls(desktop, monkeypatch, capsys):
     desktop.configure_driver(_driver_running=False, _open_starts=False)
-    result = desktop.run("desk-read", "AXStaticText")
+    result = _driver_cli(desktop, monkeypatch, capsys, "desk-read", "AXStaticText")
     assert result.returncode == 2
     assert len(result.stderr.splitlines()) == 1
-    assert "daemon not running within 10 s" in result.stderr
+    assert "daemon not running within 10 s; launch remains leased" in result.stderr
     assert not desktop.log.exists()
 
 
-def test_clean_stops_driver_without_start_marker(cleanup):
+def test_clean_unleased_idle_driver_is_left_running(cleanup):
     result = cleanup.run("desk-clean")
     assert result.returncode == 0, result.stderr
-    assert "driver=stopped" in result.stdout
-    assert cleanup.driver_calls() == [["cua-driver", "sessions"], ["cua-driver", "status"],
-                                      ["cua-driver", "stop"], ["cua-driver", "status"]]
+    assert "driver=left-running-unleased" in result.stdout
+    assert cleanup.driver_calls() == [["cua-driver", "status"]]
+    assert not Path(cleanup.env["FAKE_DRIVER_STATE"]).exists()
 
 
 def test_clean_removes_driver_start_marker(cleanup):
@@ -782,23 +811,12 @@ def test_clean_removes_driver_start_marker(cleanup):
     assert not marker.exists()
 
 
-def test_clean_live_session_preserves_second_runs_driver(cleanup):
+def test_clean_unleased_driver_with_live_sessions_is_left_running(cleanup):
     cleanup.configure_driver(_sessions="session-2: attached")
     result = cleanup.run("desk-clean")
     assert result.returncode == 0, result.stderr
-    assert "driver=left-running-live-sessions" in result.stdout
-    assert cleanup.driver_calls() == [["cua-driver", "sessions"], ["cua-driver", "status"]]
-    assert not Path(cleanup.env["FAKE_DRIVER_STATE"]).exists()
-
-
-def test_clean_ignored_stop_exits_three_without_force_kill(cleanup):
-    cleanup.configure_driver(_ignore_stop=True)
-    started = time.monotonic()
-    result = cleanup.run("desk-clean")
-    assert result.returncode == 3, result.stderr
-    assert "driver=stop-failed" in result.stdout
-    assert 5 <= time.monotonic() - started < 8
-    assert cleanup.driver_calls().count(["cua-driver", "stop"]) == 1
+    assert "driver=left-running-unleased" in result.stdout
+    assert cleanup.driver_calls() == [["cua-driver", "status"]]
     assert not Path(cleanup.env["FAKE_DRIVER_STATE"]).exists()
 
 
@@ -807,12 +825,11 @@ def test_clean_already_stopped_does_not_stop_again(cleanup):
     result = cleanup.run("desk-clean")
     assert result.returncode == 0, result.stderr
     assert "driver=already-stopped" in result.stdout
-    assert cleanup.driver_calls() == [["cua-driver", "sessions"], ["cua-driver", "status"]]
+    assert cleanup.driver_calls() == [["cua-driver", "status"]]
 
 
-@pytest.mark.parametrize("config", [{"_sessions_exit": 1}, {"_status_text": "status unavailable"}])
-def test_clean_unknown_driver_state_fails_without_stopping(cleanup, config):
-    cleanup.configure_driver(**config)
+def test_clean_unknown_driver_state_fails_without_stopping(cleanup):
+    cleanup.configure_driver(_status_text="status unavailable")
     result = cleanup.run("desk-clean")
     assert result.returncode == 3
     assert "driver=stop-failed" in result.stdout
@@ -875,8 +892,17 @@ def _resolver(monkeypatch, tmp_path):
     return _resolve
 
 
+def _fake_driver_start(resolver, monkeypatch):
+    import _lease
+    from types import SimpleNamespace
+    monkeypatch.setattr(resolver, "driver_executable", lambda: Path("/synthetic/cua-driver"))
+    monkeypatch.setattr(resolver.subprocess, "Popen", lambda *a, **k: SimpleNamespace(pid=6789))
+    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: {"pid": pid})
+
+
 def test_slow_status_probe_keeps_polling_until_daemon_runs(monkeypatch, tmp_path):
     resolver = _resolver(monkeypatch, tmp_path)
+    _fake_driver_start(resolver, monkeypatch)
     answers = iter([False, "slow", True])
 
     def status(timeout=5):
@@ -886,48 +912,49 @@ def test_slow_status_probe_keeps_polling_until_daemon_runs(monkeypatch, tmp_path
         return answer
 
     monkeypatch.setattr(resolver, "driver_status", status)
-    monkeypatch.setattr(resolver.subprocess, "run",
-                        lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
     resolver.ensure_driver()
     assert (tmp_path / "state" / "driver-started").exists()
 
 
 def test_open_timeout_is_reported_as_itself_not_as_a_missing_window(monkeypatch, tmp_path):
     resolver = _resolver(monkeypatch, tmp_path)
+    _fake_driver_start(resolver, monkeypatch)
     monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: False)
 
-    def slow_open(*args, **kwargs):
-        raise subprocess.TimeoutExpired(args[0], 5)
+    def failed_start(*args, **kwargs):
+        raise OSError("synthetic launch failure")
 
-    monkeypatch.setattr(resolver.subprocess, "run", slow_open)
-    with pytest.raises(resolver.DeskError, match="open timed out"):
+    monkeypatch.setattr(resolver.subprocess, "Popen", failed_start)
+    with pytest.raises(resolver.DeskError, match="app executable unavailable"):
         resolver.resolve("com.apple.calculator")
 
 
 def test_driver_started_by_desk_is_stopped_when_its_lease_cannot_be_recorded(monkeypatch, tmp_path):
     resolver = _resolver(monkeypatch, tmp_path)
+    _fake_driver_start(resolver, monkeypatch)
     import _lease
+    from types import SimpleNamespace
     stops = []
-    answers = [False, True]
-    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: answers.pop(0))
-    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
-    monkeypatch.setattr(resolver, "driver_command", lambda command, timeout=5: stops.append(command))
-    monkeypatch.setattr(_lease, "record_driver", lambda launched: (_ for _ in ()).throw(OSError("lease directory unusable")))
+    child = SimpleNamespace(pid=6789, wait=lambda timeout: stops.append(("wait", timeout)))
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: False)
+    monkeypatch.setattr(resolver.subprocess, "Popen", lambda *a, **k: child)
+    monkeypatch.setattr(resolver.os, "killpg", lambda pid, sig: stops.append((pid, sig)))
+    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: (_ for _ in ()).throw(OSError("lease directory unusable")))
     with pytest.raises(resolver.DeskError, match="cannot record a lease"):
         resolver.ensure_driver()
-    assert stops == ["stop"]
+    assert stops == [(child.pid, signal.SIGKILL), ("wait", 5)]
 
 
 def test_driver_started_by_desk_is_leased_for_this_session(monkeypatch, tmp_path):
     resolver = _resolver(monkeypatch, tmp_path)
+    _fake_driver_start(resolver, monkeypatch)
     import _lease
     seen = []
     answers = [False, True]
     monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: answers.pop(0))
-    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
-    monkeypatch.setattr(_lease, "record_driver", lambda launched: seen.append(launched))
+    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: seen.append((launched, pid)) or {"pid": pid})
     resolver.ensure_driver()
-    assert len(seen) == 1 and seen[0] <= time.time()
+    assert len(seen) == 1 and seen[0][0] <= time.time() and seen[0][1] == 6789
     # A daemon that was already running is never leased.
     monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: True)
     resolver.ensure_driver()

@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- Leave an unleased idle driver running during `desk-clean` (#3).
+- Keep leased drivers running on failed, timed-out, unavailable or empty session probes, with an UNKNOWN reason (#4).
+- Lease the exact launched driver PID before readiness polling, including slow starts (#5).
+- Accept custom `--dir` and `--share` roots in the doctor CLI (#7).
+- Persist a pending install manifest before payload writes so uninstall can recover interrupted installs and preserve user files and backups (#8).
+- Report invalid leases as UNKNOWN with their count and a review instruction (#9).
+- Include proof receipts and scripts in the package; identify regeneration as a source-checkout command (#11).
+- Use exact PID ownership and capture Linux clock and process evidence in the driver launch regression (#12).
+
 ### Added
 
 - `cleanup` command: dry run by default, `--apply` ends only leased processes, children first, with SIGTERM, a 3 second wait, then SIGKILL for the same process. It prints one summary line.

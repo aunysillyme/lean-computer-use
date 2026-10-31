@@ -24,7 +24,7 @@ ID = re.compile(r"^[0-9a-f]{16}$")
 ROW = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+(.*)$")
 BROWSER = re.compile(r"^(?:google[ -]chrome|chromium|chrome|headless_shell|microsoft[ -]edge|msedge|brave|vivaldi|opera|firefox|"
                      r"safari|arc)(?![A-Za-z0-9_])", re.I)
-DRIVER = re.compile(r"^(?:.*/)?cua-driver(?: .*)? serve(?: .*)?$")
+DRIVER = re.compile(r"^(?:(?:.*/)?cua-driver|/Applications/CuaDriver\.app/Contents/MacOS/[^/ ]+)(?: .*)? serve(?: .*)?$")
 PS = next((path for path in ("/bin/ps", "/usr/bin/ps") if os.path.exists(path)), "ps")
 UID = os.getuid() if hasattr(os, "getuid") else -1
 
@@ -290,14 +290,35 @@ def end_all(snaps):
     return len(snaps) - len(live), len(live)
 
 
-def driver_busy():
-    """Keep the shared driver unless it explicitly reports no live sessions."""
+def driver_sessions():
+    """Return idle, busy or unknown, with a reason that contains no session content."""
     try:
         result = subprocess.run(["cua-driver", "sessions"], capture_output=True, text=True, timeout=5)
-    except (OSError, subprocess.TimeoutExpired):
-        return True
+    except subprocess.TimeoutExpired:
+        return "unknown", "cua-driver sessions timed out"
+    except OSError:
+        return "unknown", "cua-driver sessions executable unavailable"
+    if result.returncode:
+        return "unknown", f"cua-driver sessions exited {result.returncode}"
     text = result.stdout.strip().rstrip(".")
-    return result.returncode != 0 or text != "No live sessions"
+    if not text:
+        return "unknown", "cua-driver sessions returned empty output"
+    return ("idle", "") if text == "No live sessions" else ("busy", "")
+
+
+def owned_driver():
+    """A global graceful stop is safe only for one live, provably leased driver."""
+    leases, _ = read_leases()
+    drivers = [lease for lease in leases if lease["kind"] == "driver"]
+    if not drivers:
+        return False
+    table = ps_table()
+    live = [row for row in table.values() if is_live(row) and live_kind(row["command"])[0] == "driver"]
+    if len(live) != 1:
+        return False
+    mine = ancestors(table)
+    return any(lease["pid"] == live[0]["pid"] and evaluate(lease, table, mine)["state"] == "live"
+               for lease in drivers)
 
 
 def parse_created(value):
@@ -310,7 +331,7 @@ def parse_created(value):
 def reap(apply=False, session=None, run=None, directory=None):
     items, invalid = scan(session, run, directory)
     result = {"apply": apply, "candidates": [], "stale": 0, "refused": [], "busy": 0, "kept": 0,
-              "invalid": len(invalid), "ended": {}, "left": 0}
+              "invalid": len(invalid), "unknown": [], "ended": {}, "left": 0}
     for item in items:
         lease = item["lease"]
         if item["state"] in ("gone", "reused"):
@@ -330,10 +351,15 @@ def reap(apply=False, session=None, run=None, directory=None):
         if not apply:
             result["ended"][name] = result["ended"].get(name, 0) + len(item["kill"]) + 1
             continue
-        if lease["kind"] == "driver" and driver_busy():
-            result["busy"] += 1
-            result["left"] += len(item["kill"]) + 1
-            continue
+        if lease["kind"] == "driver":
+            state, reason = driver_sessions()
+            if state != "idle":
+                if state == "unknown":
+                    result["unknown"].append({"pid": lease["pid"], "reason": reason})
+                else:
+                    result["busy"] += 1
+                result["left"] += len(item["kill"]) + 1
+                continue
         row = item["row"]
         ended, left = end_all([*item["kill"], {k: row[k] for k in ("pid", "start", "command", "uid")}])
         result["ended"][name] = result["ended"].get(name, 0) + ended
@@ -359,6 +385,8 @@ def summary(result):
         extra += f" invalid_leases={result['invalid']}"
     if result["busy"]:
         extra += f" busy_driver={result['busy']}"
+    if result.get("unknown"):
+        extra += f" unknown_driver={len(result['unknown'])}"
     if result["kept"]:
         extra += f" kept_other_apps={result['kept']}"
     if not result["apply"]:
@@ -432,26 +460,41 @@ def spawn(command, session=None, run=""):
         raise ValueError("Could not record the lease, so the process was stopped.") from None
 
 
-def record_driver(launched_at):
-    """After desk starts the daemon itself, lease the one `cua-driver serve` that began with that launch.
+def driver_diagnostics(launched_at, pid, table=None):
+    """Timing evidence for a synthetic launch failure; excludes unrelated processes."""
+    table = ps_table() if table is None else table
+    rows = [dict(row) for row in table.values()
+            if row["pid"] == pid or live_kind(row["command"])[0] == "driver"]
+    evidence = {"launched_at": launched_at, "observed_at": time.time(), "pid": pid, "rows": rows}
+    if sys.platform.startswith("linux"):
+        evidence["clock_ticks"] = os.sysconf("SC_CLK_TCK")
+        evidence["boot_clock"] = time.clock_gettime(time.CLOCK_BOOTTIME)
+        for row in rows:
+            try:
+                fields = Path(f"/proc/{row['pid']}/stat").read_text().rsplit(")", 1)[1].split()
+                row["start_ticks"] = int(fields[19])
+            except (OSError, ValueError, IndexError):
+                row["start_ticks"] = None
+    return evidence
 
-    More than one candidate is ambiguous (another session may have started its own), so nothing is leased."""
-    table = ps_table()
-    known = {(l["pid"], l["start"]) for l in read_leases()[0]}
-    found = []
-    for row in table.values():
-        if row["uid"] != UID or not is_live(row) or live_kind(row["command"])[0] != "driver":
-            continue
-        try:
-            began = time.mktime(time.strptime(row["start"], "%a %b %d %H:%M:%S %Y"))
-        except ValueError:
-            continue
-        if began >= launched_at - 1:
-            found.append(row)
-    if len(found) != 1 or (found[0]["pid"], found[0]["start"]) in known:
+
+def record_driver(launched_at, pid=None):
+    """Lease only the exact child PID returned by this launch, before readiness.
+
+    A launch timestamp alone proves no ownership, even if only one daemon is visible."""
+    if pid is None:
         return None
-    row = found[0]
-    return write_lease({"pid": row["pid"], "kind": "driver", "start": row["start"], "command": row["command"],
+    # Popen owns this exact PID. Startup and readiness may be arbitrarily far apart;
+    # second-resolution ps timestamps cannot establish that ownership.
+    row = settled_row(pid)
+    if not is_live(row) or row["uid"] != UID or live_kind(row["command"])[0] != "driver":
+        raise ValueError("the launched driver process cannot be identified")
+    known = read_leases()[0]
+    existing = next((lease for lease in known if lease["pid"] == pid
+                     and lease["start"] == row["start"] and lease["command"] == row["command"]), None)
+    if existing:
+        return existing
+    return write_lease({"pid": pid, "kind": "driver", "start": row["start"], "command": row["command"],
                         "argv": row["command"].split(" "), "session": session_from_env(), "run": "",
                         "created": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z"})
 
@@ -481,6 +524,8 @@ def hook_main(stream=None):
         result = reap(apply=True, session=session)
         if any(result["ended"].values()) or result["left"] or result["refused"] or result["invalid"]:
             print(summary(result), file=sys.stderr)
+        for probe in result["unknown"]:
+            print(f"UNKNOWN pid={probe['pid']}: {probe['reason']}; driver left running", file=sys.stderr)
     except Exception:
         pass
     return 0

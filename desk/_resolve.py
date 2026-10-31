@@ -2,7 +2,9 @@
 """Shared cua-driver calls, app resolution and private desk state."""
 import json
 import os
+import plistlib
 import re
+import signal
 import stat
 import subprocess
 import tempfile
@@ -15,6 +17,7 @@ CACHE = STATE / "apps.json"
 MARKER = ".desk-state"
 DRIVER_MARKER = "driver-started"
 DRIVER_START_WAIT = 10.0
+DRIVER_APP = Path("/Applications/CuaDriver.app")
 WINDOW_WAIT = 5.0
 # Only files desk itself writes are ever pruned: apps.json plus tempfile-named
 # "<tool>-<8 random [a-z0-9_]>.json" results. Anything else in the dir is not ours.
@@ -92,48 +95,71 @@ def driver_status(timeout=5):
     return None
 
 
-def record_driver_lease(launched):
-    """Record a lease for the daemon this call started, so cleanup can prove it owns it.
+def driver_executable():
+    """Launch the executable named by the installed app's metadata."""
+    try:
+        with (DRIVER_APP / "Contents" / "Info.plist").open("rb") as handle:
+            metadata = plistlib.load(handle)
+            executable = metadata.get("CFBundleExecutable") if isinstance(metadata, dict) else None
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        raise DeskError("cannot start cua-driver: app executable metadata unavailable") from None
+    if (not isinstance(executable, str) or executable in ("", ".", "..")
+            or "/" in executable or "\\" in executable
+            or any(ord(char) < 32 or ord(char) == 127 for char in executable)):
+        raise DeskError("cannot start cua-driver: invalid app executable metadata")
+    return DRIVER_APP / "Contents" / "MacOS" / executable
 
-    A daemon that cannot be tracked is stopped again: nothing may keep running without an owner on record."""
+
+def record_driver_lease(launched, child):
+    """Lease the exact child before readiness; stop its fresh group if recording fails."""
     try:
         from _lease import record_driver
-        record_driver(launched)
+        lease = record_driver(launched, pid=child.pid)
+        if lease is None:
+            raise ValueError("launched process could not be identified")
+        return lease
     except Exception:
+        # The child has not been waited on, so its pid cannot have been reused.
+        # Its new session contains only this launch and its own descendants.
         try:
-            driver_command("stop")
-        except DeskError:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
             pass
-        raise DeskError("cannot record a lease for the cua-driver daemon this call started; it was stopped") from None
+        except OSError:
+            raise DeskError("cannot record a cua-driver lease; launch teardown failed") from None
+        try:
+            child.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            raise DeskError("cannot record a cua-driver lease; launch teardown failed") from None
+        raise DeskError("cannot record a lease for the cua-driver process this call started; it was stopped") from None
 
 
 def ensure_driver():
     if driver_status() is True:
         return
     prepare_state()
-    launched = time.time()
-    try:
-        result = subprocess.run(["open", "-g", "-a", "/Applications/CuaDriver.app", "--args", "serve"],
-                                capture_output=True, text=True, timeout=5)
-    except OSError:
-        raise DeskError("cannot start cua-driver: open executable unavailable") from None
-    except subprocess.TimeoutExpired:
-        raise DeskError("cannot start cua-driver: open timed out") from None
-    if result.returncode:
-        raise DeskError(f"cannot start cua-driver: open exited {result.returncode}")
-    # Keep launch ownership even if the daemon does not become ready in time.
+    executable = driver_executable()
+    # Create state before launching: a state-write failure must leave no child.
     fd = os.open(STATE / DRIVER_MARKER,
                  os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w") as handle:
         os.fchmod(handle.fileno(), 0o600)
+    launched = time.time()
+    try:
+        child = subprocess.Popen([str(executable), "serve"], stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                 start_new_session=True)
+    except OSError:
+        raise DeskError("cannot start cua-driver: app executable unavailable") from None
+    record_driver_lease(launched, child)
     deadline = time.monotonic() + DRIVER_START_WAIT
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise DeskError("cannot start cua-driver: daemon not running within 10 s")
+            # Startup may finish later; the child and its descendants already have a lease.
+            raise DeskError("cannot start cua-driver: daemon not running within 10 s; launch remains leased")
         try:
             if driver_status(min(2, remaining)) is True:
-                record_driver_lease(launched)
                 return
         except DeskError as error:
             # One slow status probe is not a failed start; keep polling until the deadline.

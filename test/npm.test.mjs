@@ -32,7 +32,8 @@ test('packed package installs offline, runs commands and uninstalls its files', 
   assert.ok(pack.files.every(file => !file.path.endsWith('.gif')), 'GIF files stay outside the npm package');
   assert.ok(pack.files.every(file => !file.path.startsWith('website/')), 'Website files stay outside the npm package');
   assert.ok(pack.size <= 300000 && pack.unpackedSize <= 1000000);
-  assert.ok(pack.files.every(file => !/^\.repo-build\/|^(?:test|proof)\/|(?:^|\/)tests\//.test(file.path)));
+  assert.ok(pack.files.every(file => !/^\.repo-build\/|^test\/|(?:^|\/)tests\//.test(file.path) && (!file.path.startsWith('proof/') || file.path === 'proof/results.json')));
+  for (const path of ['proof/results.json', 'scripts/proof.mjs', 'scripts/proof-data.mjs']) assert.ok(pack.files.some(file => file.path === path), path);
   // npm 10 matches a bare "*.md" at any depth and npm 12 only at the root, so every nested file must be named by its own entry.
   const entries = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).files.filter(entry => entry !== '*.md');
   const named = path => entries.some(entry => entry.endsWith('/') ? path.startsWith(entry)
@@ -41,7 +42,14 @@ test('packed package installs offline, runs commands and uninstalls its files', 
   assert.ok(pack.files.some(file => file.path === 'hooks/README.md'));
   write(root, 'package.json', '{"private":true}');
   run(npm, ['install', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', join(root, pack.filename)]);
-  const binary = join(root, 'node_modules/lean-computer-use/bin/lean-computer-use.mjs');
+  const installed = join(root, 'node_modules/lean-computer-use');
+  const receipts = JSON.parse(readFileSync(join(installed, 'proof/results.json'), 'utf8'));
+  assert.ok(receipts.length > 0);
+  const proof = spawnSync(process.execPath, [join(installed, 'scripts/proof.mjs')], { env, encoding: 'utf8', timeout: 30000 });
+  assert.equal(proof.status, 1, proof.stdout + proof.stderr);
+  assert.match(proof.stderr, /source checkout with its test suites and fixtures/);
+  assert.match(readFileSync(join(installed, 'README.md'), 'utf8'), /Regenerate them from a source checkout with `npm run proof`/);
+  const binary = join(installed, 'bin/lean-computer-use.mjs');
   const plan = run(process.execPath, [binary, 'install', '--dry-run', '--yes']);
   assert.ok(plan.includes('Install plan') && plan.includes('manifest:'));
   run(process.execPath, [binary, 'install', '--yes']);

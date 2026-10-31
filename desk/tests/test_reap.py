@@ -264,17 +264,28 @@ def test_a_driver_with_live_sessions_is_left_running(lab):
 
 def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkeypatch):
     old = lab.start("cua-driver", extra=["serve"])
-    time.sleep(2.1)  # ps start times have one-second precision and the lease window has a one-second margin.
+    assert _lease.settled_row(old) is not None
     marker = time.time()
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "S9")
     # Only the daemon that began with this launch is leased; an older one is not ours.
-    _lease.record_driver(marker)
+    # Capture startup evidence before selection so Linux failures show clock precision,
+    # process identity and /proc start ticks rather than only an empty lease list.
+    evidence = _lease.driver_diagnostics(marker, new)
+    began = time.monotonic()
+    try:
+        _lease.record_driver(marker, pid=new)
+    except Exception as error:
+        evidence["after"] = _lease.driver_diagnostics(marker, new)
+        evidence["poll_seconds"] = time.monotonic() - began
+        pytest.fail(f"{error}: {json.dumps(evidence, indent=2)}")
+    evidence["poll_seconds"] = time.monotonic() - began
     leases = _lease.read_leases(lab.leases)[0]
-    assert [l["pid"] for l in leases] == [new] and leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
+    assert [l["pid"] for l in leases] == [new], json.dumps(evidence, indent=2)
+    assert leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
     assert alive(old)
-    _lease.record_driver(marker)
+    _lease.record_driver(marker, pid=new)
     assert len(_lease.read_leases(lab.leases)[0]) == 1
 
 
@@ -299,7 +310,8 @@ def test_unknown_driver_session_state_does_not_end_driver(lab):
     sessions.chmod(0o755)
     pid = lab.spawn("cua-driver", SLEEP, ["serve"])
     result = lab.reap("cleanup", "--apply", "--all", env={"PATH": f"{fake}:{os.environ['PATH']}"})
-    assert result.returncode == 1 and "busy_driver=1" in result.stdout and alive(pid)
+    assert result.returncode == 1 and "unknown_driver=1" in result.stdout and alive(pid)
+    assert "UNKNOWN" in result.stderr and "exited 1" in result.stderr
 
 
 def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab):

@@ -38,6 +38,8 @@ npx lean-computer-use spawn -- <command> [args]
 
 `spawn` starts the command detached, records the lease and returns. A browser or a desktop app executable is refused before it starts, and a process whose lease cannot be written is stopped again. `--session ID` and `--run NAME` label the lease.
 
+`desk` launches the executable inside `CuaDriver.app` in its own process group and records its exact PID before waiting for readiness. A slow start keeps its lease after the readiness timeout. A lease write failure stops only that new process group. The installed driver's foreground `serve` behavior and macOS permissions need verification for your vendor build.
+
 ## What it ends
 
 A process is ended when all of these hold:
@@ -53,12 +55,14 @@ Its children go first. Each process gets SIGTERM, then a 3 second wait, then SIG
 ## What is left alone
 
 - A driver you started yourself: it has no lease. `desk` starts the daemon on demand, so a driver ended here comes back on the next call.
-- A daemon that two sessions started at the same moment: it is ambiguous, so it is not leased.
+- A daemon outside the exact PID that this call launched.
 - A driver that still reports live sessions: the line shows `busy_driver=1` and the exit code is 1.
-- A driver whose session status cannot be read: it is also left running and reported as busy.
+- A driver whose session probe fails, times out, is unavailable or returns empty output: it stays running, with `unknown_driver=N`, an UNKNOWN reason and exit 1.
 - Invalid lease files: they are not trusted, and `invalid_leases` reports their count for review.
 - Apps and browsers found below a leased helper, unless they belong to the helper's own bundle: the line shows `kept_other_apps=N`.
 - Processes with no lease, and processes of other users.
+
+`desk-clean` also requires a matching lease before stopping the driver. It uses the driver's gentle stop command only when exactly one driver is running, the lease still matches and the session probe explicitly reports no live sessions. An idle driver with no lease stays running with `driver=left-running-unleased`. The `driver-started` state marker alone grants no ownership.
 
 ## Trust
 
