@@ -24,7 +24,6 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      # Maintainer verifies and replaces this major tag with a full SHA before release automation.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
@@ -38,7 +37,7 @@ jobs:
       - run: node scripts/self-check.mjs
       - name: Test desk tools and native hooks
         run: |
-          python3 -m pip install pytest
+          python3 -m pip install --require-hashes --no-deps -r .github/requirements-ci.txt
           python3 -m pytest -q desk/tests hooks/tests
       - name: Check JavaScript types
         run: |
