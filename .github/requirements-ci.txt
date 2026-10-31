@@ -17,4 +17,3 @@ pygments==2.21.0 \
 pytest==9.2.0 \
     --hash=sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588 \
     --hash=sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b
-    # via -r /private/tmp/claude-501/-Users-auny-Claude-Code/f98c544a-cd8e-437e-a091-ae4c926ce6e8/scratchpad/req.in
