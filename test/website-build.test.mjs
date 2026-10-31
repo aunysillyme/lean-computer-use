@@ -102,7 +102,9 @@ test('landing cards and action buttons start with a decorative border ray', t =>
   // The Projects popup carries its own rays; the rest of the header stays plain.
   const header = html.match(/<header\b[^]*?<\/header>/)[0];
   assert.doesNotMatch(header.replace(/<div class="projects-popup"[\s\S]*?<\/ul><\/div><\/div>/, ''), /card-trace/);
-  for (const link of header.match(/<a class="projects-popup__link"[\s\S]*?<\/a>/g) || []) {
+  const links = header.match(/<a class="projects-popup__link"[\s\S]*?<\/a>/g) || [];
+  assert.equal(links.length, 6);
+  for (const link of links) {
     assert.match(link, /class="card-trace"/);
     assert.match(link, /https:\/\/[a-z-]+\.aunysillyme\.dev/);
   }

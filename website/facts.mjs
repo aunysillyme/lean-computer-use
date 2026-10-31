@@ -106,7 +106,24 @@ function elements(html, attribute, tag = '[a-z][a-z0-9]*') {
 }
 
 // Closed navigation content is not visible page copy.
-const withoutClosedProjects = html => html.replace(/<div\b[^>]*\bdata-projects-panel\b[^>]*\bhidden\b[^>]*>[^]*?<\/div>/gi, '');
+const withoutClosedProjects = html => {
+  const panel = /<div\b[^>]*\bdata-projects-panel\b[^>]*\bhidden\b[^>]*>/gi;
+  let match;
+  while ((match = panel.exec(html))) {
+    const tags = /<\/?div\b[^>]*>/gi;
+    tags.lastIndex = panel.lastIndex;
+    let depth = 1;
+    let tag;
+    while ((tag = tags.exec(html))) {
+      depth += /^<\//.test(tag[0]) ? -1 : 1;
+      if (depth === 0) break;
+    }
+    if (!tag) break;
+    html = html.slice(0, match.index) + html.slice(tags.lastIndex);
+    panel.lastIndex = match.index;
+  }
+  return html;
+};
 
 export function keywordCounts(facts, html) {
   const text = visibleText(withoutClosedProjects(html).match(/<body\b[^>]*>([^]*?)<\/body>/i)?.[1] || '');

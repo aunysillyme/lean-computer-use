@@ -155,7 +155,7 @@ test('RED real command prefixes and documented flags reject planted violations',
 });
 
 test('closed Projects panel does not count as visible landing copy', () => {
-  const expanded = html.replace('data-projects-panel id="projects-popup" hidden>', `data-projects-panel id="projects-popup" hidden>${'computer use '.repeat(30)}`);
+  const expanded = html.replace('data-projects-panel id="projects-popup" hidden>', `data-projects-panel id="projects-popup" hidden><div><div>Nested</div></div>${'computer use '.repeat(30)}`);
   assert.doesNotThrow(() => validateKeywords(facts, expanded));
 });
 
