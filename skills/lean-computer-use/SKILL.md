@@ -65,7 +65,7 @@ The retry guard and batch hint support the workflow; the runner enforces the bri
 ## Measure your transcripts
 
 Run `npx lean-computer-use measure --json` on your own local transcripts.
-Use `--projects-dir <dir>`, `--since YYYY-MM-DD` or `--tool-pattern <regex>` to narrow the scan.
+Use `--projects-dir <dir>`, `--since YYYY-MM-DD` or `--tool-pattern <text>` to narrow the scan. Tool filters match literal text.
 The command counts each assistant message id once, keeps its largest recorded input total, and separates main-session from subagent steps.
 The report includes p90 (the value 90 percent of steps stay under).
 Compare the same task class and time range before drawing a cost conclusion.
