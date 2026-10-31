@@ -39,8 +39,10 @@ function fixture(t) {
   const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs'];
   inputs.push(...JSON.parse(read(root, 'website/tools.json')).flatMap(tool => tool.source));
   for (const folder of ['docs', 'skills', 'desk', 'hooks', 'agents', 'briefs', 'proof', 'website']) {
+    // Desk and hook tests create and remove .desk-test-*, .hook-test-* and .gate-test-* folders while suites run in parallel.
     inputs.push(...files(join(root, folder)).filter(file => !file.split('/').some(part =>
-      ['node_modules', 'dist', '__pycache__'].includes(part))).map(file => `${folder}/${file}`));
+      ['node_modules', 'dist', '__pycache__', '.pytest_cache'].includes(part) || /^\.(desk|hook|gate)-test-/.test(part)))
+      .map(file => `${folder}/${file}`));
   }
   for (const file of new Set(inputs)) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
@@ -289,15 +291,17 @@ test('RED hero has approved headline and visible keywords, with the prohibited h
 
 test('RED unverified release stays pending and a verified local release shows its version', t => {
   const dir = fixture(t);
-  const pending = value => assert.match(text(value), /v0\.1\.0 not released yet/);
+  rmSync(join(dir, 'website/release.json'), { force: true });
+  const version = JSON.parse(read(dir, 'package.json')).version;
+  const pending = value => assert.ok(text(value).includes(`v${version} not released yet`));
   const initial = read(built(dir), 'index.html');
   assert.throws(() => pending(initial.replace('not released yet', 'released')));
   pending(initial);
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: false }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: false }));
   pending(read(built(dir, { out: 'unverified' }), 'index.html'));
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: true }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: true }));
   const verified = text(read(built(dir, { out: 'verified' }), 'index.html'));
-  assert.ok(verified.includes('0.1.0'));
+  assert.ok(verified.includes(`v${version}`));
   assert.ok(!verified.includes('not released yet'));
 });
 

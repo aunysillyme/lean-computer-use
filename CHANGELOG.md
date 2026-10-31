@@ -14,7 +14,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Persist a pending install manifest before payload writes so uninstall can recover interrupted installs and preserve user files and backups (#8).
 - Report invalid leases as UNKNOWN with their count and a review instruction (#9).
 - Include proof receipts and scripts in the package; identify regeneration as a source-checkout command (#11).
-- Use exact PID ownership and capture Linux clock and process evidence in the driver launch regression (#12).
+- Lease the exact launched PID instead of selecting by `ps lstart` (#12). The old one-second cutoff could reject a fresh Linux child because `ps` reports whole seconds using a rounded boot epoch. Capture launch and polling times, `ps` deltas, `/proc` start ticks and clock resolution on failure. The historical CI trace still needs Linux confirmation.
+
+## [0.1.2] - 2026-10-29
+
+### Added
+
+- PostToolUse touch hook records native desktop actions and successful releases per session and subagent.
+- Stop and runner SubagentStop gate requests the release once per held stretch, with the exact release tool and the `keep` command.
+- `keep --reason` command holds desktop control for the user, including the session's subagents.
+- `doctor` open-surfaces check fails for desktop control held more than ten minutes and never released.
+- `--no-stop-gate` install flag leaves out the touch and stop gate registrations. The gate comes with `--with-hooks` by default.
+
+### Changed
+
+- Cleanup guide, runner and skill end the desktop control the run took before the app cleanup.
+- The install manifest records the installed package version.
+
+## [0.1.1] - 2026-10-28
 
 ### Added
 
@@ -23,6 +40,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Cleanup hooks for SubagentStop (`desk-runner`), Stop and SessionEnd, registered by `install --with-hooks` and removed by `uninstall`; each exits 0 on every path.
 - `doctor` check that fails when leased processes are still running.
 - Runner agent and cleanup method end with the exact cleanup command.
+
+### Fixed
+
+- On Linux, where `ps` can report a start time up to 2 seconds early, the driver lease accepts that margin; macOS keeps its 1 second window.
+- The weekly proof refresh leaves its branch and a compare link when the repository does not let Actions open pull requests.
+
+### Changed
+
+- Releases publish from GitHub Actions through npm Trusted Publishing, with provenance.
 
 ## [0.1.0] - 2026-10-25
 
@@ -33,5 +59,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Installer, owned-file uninstall, environment doctor and transcript measurement.
 - Package proof, privacy checks and repository workflows.
 
-[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aunysillyme/lean-computer-use/releases/tag/v0.1.0

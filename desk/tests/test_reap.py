@@ -289,6 +289,28 @@ def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkey
     assert len(_lease.read_leases(lab.leases)[0]) == 1
 
 
+@pytest.mark.parametrize("reported_age", [0.0, 1.9, 10.0])
+def test_driver_lease_uses_owned_pid_despite_rounded_start_time(tmp_path, monkeypatch, reported_age):
+    start = "Sat Oct 31 12:00:00 2026"
+    rows = {pid: {"pid": pid, "ppid": 1, "uid": _lease.UID, "stat": "S", "start": start,
+                  "command": "cua-driver serve"} for pid in (6788, 6789)}
+    directory = tmp_path / "leases"
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(directory))
+    monkeypatch.setattr(_lease, "ps_table", lambda: rows)
+    reads = []
+
+    def settled(pid):
+        reads.append(pid)
+        return rows[pid]
+
+    monkeypatch.setattr(_lease, "settled_row", settled)
+    launched = time.mktime(time.strptime(start, "%a %b %d %H:%M:%S %Y")) + reported_age
+    # Both daemons can report the same second. Only the Popen child belongs to this launch.
+    lease = _lease.record_driver(launched, pid=6789)
+    assert lease["pid"] == 6789 and reads == [6789]
+    assert [entry["pid"] for entry in _lease.read_leases(directory)[0]] == [6789]
+
+
 def test_invalid_and_unsafe_lease_files_are_ignored(lab):
     pid = lab.start("helper")
     lab.leases.mkdir(mode=0o700)

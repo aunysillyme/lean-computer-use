@@ -63,9 +63,9 @@
     "id": "clean",
     "name": "desk-clean",
     "kind": "command",
-    "does": "Removes owned result files and the selected app's cache entry, and gently quits the app only when --launched-by-run is supplied. Checks the app state and stops the shared driver only when its session query confirms no live sessions; exit 3 reports an app still running or an unconfirmed driver stop. Preserve the saved read before cleanup and use the flag only when this run opened the app.",
+    "does": "Removes owned result files and the selected app's cache entry, and gently quits the app only when --launched-by-run is supplied. Checks the app state and stops the shared driver only with a matching lease and an explicit idle session response; exit 3 reports an app still running or an unconfirmed driver stop. Preserve the saved read before cleanup and use the flag only when this run opened the app.",
     "commands": ["desk-clean com.apple.calculator --app-name Calculator"],
-    "source": ["desk/desk-clean", "desk/README.md", "skills/lean-computer-use/methods/cleanup-with-proof.md"],
+    "source": ["desk/desk-clean", "desk/_lease.py", "desk/README.md", "skills/lean-computer-use/methods/cleanup-with-proof.md"],
     "must_appear": ["cache.pop(bundle_id, None)", "if options.launched_by_run:", "quit_app(name)", "No live sessions", "rc = 3 if app == \"still-running\" else 0", "Preserve the final saved read", "--app-name", "--launched-by-run"],
     "keywords": { "primary": "cleanup proof", "secondary": [] }
   },
@@ -103,10 +103,10 @@
     "id": "doctor",
     "name": "doctor",
     "kind": "command",
-    "does": "Checks Node, Python, installed skill, agent and desk files, and optional hook registrations, with a fix for each check. On macOS it also checks osascript, the driver, daemon state, Accessibility and Screen Recording permissions, and telemetry status; other platforms receive native-check warnings. --json returns the report, and any failed check gives exit 1.",
+    "does": "Checks Node, Python, installed skill, agent and desk files, and optional hook registrations, with a fix for each check. On macOS it also checks osascript, the driver, daemon state, Accessibility and Screen Recording permissions, and telemetry status; other platforms receive native-check warnings. --json returns the report, and any failed or unknown check gives exit 1.",
     "commands": ["npx lean-computer-use doctor --json"],
     "source": ["src/doctor.mjs"],
-    "must_appear": ["add('node'", "add('python'", "add('installed-files'", "add('hooks'", "['osascript', 'driver', 'daemon', 'permissions', 'telemetry']", "state.accessibility === true && state.screen_recording === true", "--json", "checks.some(check => check.status === 'FAIL') ? 1 : 0"],
+    "must_appear": ["add('node'", "add('python'", "add('installed-files'", "add('hooks'", "['osascript', 'driver', 'daemon', 'permissions', 'telemetry']", "state.accessibility === true && state.screen_recording === true", "--json", "checks.some(check => ['FAIL', 'UNKNOWN'].includes(check.status)) ? 1 : 0"],
     "keywords": { "primary": "environment checks", "secondary": [] }
   },
   {

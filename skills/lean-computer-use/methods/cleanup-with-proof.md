@@ -4,6 +4,7 @@ Cleanup runs on success, failure and a bound reached.
 Preserve the final saved read at the granted evidence handoff path first.
 End only driver sessions this run started and release only locks it acquired.
 Stop only background tasks and processes it started.
+End the desktop control this run took: call `release_full_control` or `app_release` (computer-use) or `end_session` (cua-driver) for control it holds. Apps the user already had open stay open. Hold control the user must act on with `npx --yes lean-computer-use keep --reason "<why>"` and name it in the report. Otherwise the stop gate blocks once to request the release.
 
 Run the cleanup command:
 

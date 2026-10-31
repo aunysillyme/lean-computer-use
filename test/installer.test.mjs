@@ -373,7 +373,9 @@ test('staging changed after interruption keeps its journal for review', async t 
 test('staging with an unavailable matching source keeps its journal for review', async t => {
   const value = setup(t);
   await interruptedStage(value, 'payload', 'beforeRename');
-  const source = join(value.source, 'skills/lean-computer-use/SKILL.md');
+  const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
+  const stage = manifest.staging.at(-1);
+  const source = join(value.source, stage.original);
   const original = readFileSync(source);
   writeFileSync(source, 'Different package version\n');
   const before = snapshot(value.state);

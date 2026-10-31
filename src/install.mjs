@@ -29,12 +29,13 @@ function captureAnchors(roots) {
 
 export function parseInstallArgs(args) {
   /** @type {Record<string, any>} */
-  const options = { yes: false, dryRun: false, withHooks: false };
+  const options = { yes: false, dryRun: false, withHooks: false, noStopGate: false };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--yes') options.yes = true;
     else if (arg === '--dry-run' || arg === '--dry') options.dryRun = true;
     else if (arg === '--with-hooks') options.withHooks = true;
+    else if (arg === '--no-stop-gate') options.noStopGate = true;
     else if (arg === '--dir' || arg === '--share') {
       const value = args[++index];
       if (!value || value.startsWith('--')) throw fail(`Missing value for ${arg}`);
@@ -196,7 +197,7 @@ function stagingCleanup(manifest, roots, source) {
       else if (stage.original === 'settings.json') {
         const target = safePath(roots.dir, stage.original);
         const current = existsSync(target) ? readJson(target, 'settings') : {};
-        expected = Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source)));
+        expected = Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source, { stopGate: manifest.stopGate !== false })));
       } else {
         payload ||= payloadFiles(roots, source);
         expected = payload.find(file => file.root === stage.root && file.path === stage.original)?.content;
@@ -226,7 +227,7 @@ export async function installCommand(args = [], adapters = {}) {
   if (options.withHooks) {
     const path = safePath(roots.dir, 'settings.json');
     const current = existsSync(path) ? readJson(path, 'settings') : {};
-    files.push({ root: 'dir', path: 'settings.json', content: Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source))), mode: existsSync(path) ? lstatSync(path).mode & 0o777 : 0o600, settings: true });
+    files.push({ root: 'dir', path: 'settings.json', content: Buffer.from(format(mergeHooks(current, join(roots.share, 'hooks'), source, { stopGate: !options.noStopGate }))), mode: existsSync(path) ? lstatSync(path).mode & 0o777 : 0o600, settings: true });
   }
   const plan = files.map(file => {
     const path = safePath(roots[file.root], file.path);
@@ -255,7 +256,7 @@ export async function installCommand(args = [], adapters = {}) {
     const directories = [...(previous?.directories || []), ...directoriesInside(roots, created)];
     const unique = [...new Map(directories.map(value => [`${value.root}:${value.path}:${value.parents || 0}`, value])).values()];
     const files = pending ? records : records.map(({ priorHash, ...record }) => record);
-    writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: '0.1.0', roots, anchors, files, directories: unique, ...(pending ? { state: 'pending', staging } : {}) }), 0o600);
+    writeChecked(safePath(roots.share, manifestName), format({ version: 1, packageVersion: JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version, stopGate: !options.noStopGate, roots, anchors, files, directories: unique, ...(pending ? { state: 'pending', staging } : {}) }), 0o600);
     adapters.afterWrite?.(pending ? 'pending' : 'complete', join(roots.share, manifestName));
   };
   const stagedWrite = (file, target, content, mode, kind) => {

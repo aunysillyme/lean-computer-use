@@ -465,7 +465,14 @@ def driver_diagnostics(launched_at, pid, table=None):
     table = ps_table() if table is None else table
     rows = [dict(row) for row in table.values()
             if row["pid"] == pid or live_kind(row["command"])[0] == "driver"]
-    evidence = {"launched_at": launched_at, "observed_at": time.time(), "pid": pid, "rows": rows}
+    observed = time.time()
+    evidence = {"launched_at": launched_at, "observed_at": observed, "pid": pid, "rows": rows}
+    for row in rows:
+        try:
+            row["ps_started_at"] = time.mktime(time.strptime(row["start"], "%a %b %d %H:%M:%S %Y"))
+            row["launch_minus_ps_seconds"] = launched_at - row["ps_started_at"]
+        except ValueError:
+            row["ps_started_at"] = None
     if sys.platform.startswith("linux"):
         evidence["clock_ticks"] = os.sysconf("SC_CLK_TCK")
         evidence["boot_clock"] = time.clock_gettime(time.CLOCK_BOOTTIME)
@@ -473,6 +480,9 @@ def driver_diagnostics(launched_at, pid, table=None):
             try:
                 fields = Path(f"/proc/{row['pid']}/stat").read_text().rsplit(")", 1)[1].split()
                 row["start_ticks"] = int(fields[19])
+                row["start_tick_seconds"] = row["start_ticks"] / evidence["clock_ticks"]
+                row["proc_started_at"] = observed - evidence["boot_clock"] + row["start_tick_seconds"]
+                row["launch_minus_proc_seconds"] = launched_at - row["proc_started_at"]
             except (OSError, ValueError, IndexError):
                 row["start_ticks"] = None
     return evidence
