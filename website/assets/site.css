@@ -33,3 +33,5 @@
 .card:not(:hover):not(:focus-within)>.card-trace rect{animation:none}
 @media (prefers-reduced-motion: reduce){.card-trace rect{animation:none!important}.card:hover,.card:focus-within{border-color:var(--green)}.card .card-trace{display:none}}
 @media (forced-colors: active){.card .card-trace{display:none}}
+
+@media(max-width:600px){.topnav{gap:8px}}

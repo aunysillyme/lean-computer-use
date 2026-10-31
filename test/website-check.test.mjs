@@ -201,10 +201,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 14);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 17);
-  assert.equal(expectedFiles().length, 23);
-  assert.equal(expectedFiles(true).length, 35);
+  assert.equal(expectedFiles().length, pages.length + 16);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 19);
+  assert.equal(expectedFiles().length, 25);
+  assert.equal(expectedFiles(true).length, 37);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 
