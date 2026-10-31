@@ -410,16 +410,19 @@ def age_text(seconds):
 
 # Writers: spawn, and the driver lease desk records after it starts the daemon ---
 def settled_row(pid):
-    """A wrapper or interpreter may re-exec just after start; wait until two reads agree."""
+    """Observe the full startup window; a wrapper may re-exec after two matching reads."""
     previous = None
-    for _ in range(10):
+    stable = False
+    for attempt in range(10):
         row = ps_one(pid)
         if not is_live(row):
             return None
-        if previous and previous["command"] == row["command"] and previous["start"] == row["start"]:
-            return row
+        stable = previous is not None and previous["command"] == row["command"] and previous["start"] == row["start"]
         previous = row
-        time.sleep(0.1)
+        if attempt < 9:
+            time.sleep(POLL)
+    if not stable:
+        raise ValueError("Refused: the running command did not settle.")
     return previous
 
 

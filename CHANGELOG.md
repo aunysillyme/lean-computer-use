@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Fix the flaky spawn test: two matching reads could lease a shell before it exec'd into a browser. Observe the full startup window and require the final reads to agree before leasing.
 - Leave an unleased idle driver running during `desk-clean` (#3).
 - Keep leased drivers running on failed, timed-out, unavailable or empty session probes, with an UNKNOWN reason (#4).
 - Keep the exact new driver PID leased even when readiness times out, including slow starts (#5).

@@ -46,8 +46,24 @@ class Lab:
         self.env.pop("CLAUDE_SESSION_ID", None)
         self.pids = set()
 
-    def reap(self, *args, env=None, timeout=30):
-        return subprocess.run([sys.executable, str(REAP), *args], capture_output=True, text=True,
+    def reap(self, *args, env=None, timeout=30, trace=False):
+        command = [sys.executable, str(REAP), *args]
+        if trace:
+            # Trace only the child rows that spawn actually judges.
+            command = [sys.executable, "-c", """
+import json, runpy, sys
+sys.path.insert(0, sys.argv[1])
+import _lease
+original = _lease.ps_one
+def observed(pid):
+    row = original(pid)
+    print('spawn ps: ' + json.dumps(row), file=sys.stderr, flush=True)
+    return row
+_lease.ps_one = observed
+sys.argv = sys.argv[2:]
+runpy.run_path(sys.argv[0], run_name='__main__')
+""", str(DESK), str(REAP), *args]
+        return subprocess.run(command, capture_output=True, text=True,
                               env=dict(self.env, **(env or {})), timeout=timeout)
 
     def spawn(self, exe="helper", code=SLEEP, extra=(), session="S1"):
@@ -338,15 +354,77 @@ def test_unknown_driver_session_state_does_not_end_driver(lab):
     assert "UNKNOWN" in result.stderr and "exited 1" in result.stderr
 
 
-def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab):
+@pytest.mark.parametrize("delay", [0, 0.3])
+def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab, delay):
     script = lab.dir / "wrap.sh"
-    script.write_text(f"#!/bin/sh\nexec {str(lab.bin / 'Google Chrome')!r} -e 'setTimeout(()=>{{}},120000)' -- --headless\n")
+    pause = f"sleep {delay}\n" if delay else ""
+    script.write_text(f"#!/bin/sh\n{pause}exec {str(lab.bin / 'Google Chrome')!r} -e 'setTimeout(()=>{{}},120000)' -- --headless\n")
     script.chmod(0o755)
-    result = lab.reap("spawn", "--", str(script))
-    assert result.returncode == 2 and "Refused" in result.stderr
+    result = lab.reap("spawn", "--", str(script), trace=True)
+    evidence = result.stdout + result.stderr
+    # A premature successful lease must still be cleaned up on assertion failure.
+    for lease in _lease.read_leases(lab.leases)[0]:
+        lab.pids.add(lease["pid"])
+    assert result.returncode == 2 and "Refused" in result.stderr, evidence
     time.sleep(0.5)
     assert not [r for r in _lease.ps_table().values() if "Google Chrome" in r["command"] and str(lab.bin) in r["command"] and not r["stat"].startswith("Z")]
     assert lab.lease_files() == []
+
+
+def test_spawn_leases_a_plain_helper_that_never_changes(lab):
+    pid = lab.spawn()
+    [lease] = _lease.read_leases(lab.leases)[0]
+    assert lease["pid"] == pid and lease["kind"] == "helper" and alive(pid)
+
+
+@pytest.mark.parametrize("becomes_browser", [False, True])
+def test_spawn_observes_startup_before_leasing(tmp_path, monkeypatch, becomes_browser):
+    clock = [0.0]
+    observations, stopped = [], []
+    helper = {"pid": 6789, "ppid": 1, "uid": _lease.UID, "stat": "S",
+              "start": "Sat Oct 31 12:00:00 2026", "command": "/bin/sh /tmp/wrap.sh" if becomes_browser else "/tmp/helper"}
+    browser = {**helper, "command": "/tmp/Google Chrome --headless"}
+
+    def observed(pid):
+        row = browser if becomes_browser and clock[0] >= 0.3 else helper
+        observations.append(dict(row))
+        return row
+
+    def sleep(seconds):
+        clock[0] += seconds
+
+    class Child:
+        pid = helper["pid"]
+
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(tmp_path / "leases"))
+    monkeypatch.setattr(_lease.subprocess, "Popen", lambda *a, **kw: Child())
+    monkeypatch.setattr(_lease, "ps_one", observed)
+    monkeypatch.setattr(_lease.time, "sleep", sleep)
+    monkeypatch.setattr(_lease, "kill_group", lambda child: stopped.append(child.pid))
+    if becomes_browser:
+        with pytest.raises(ValueError, match="Refused"):
+            _lease.spawn(["/tmp/wrap.sh"])
+        assert stopped == [helper["pid"]]
+        assert _lease.read_leases()[0] == []
+        assert observations[0] == helper and observations[-1] == browser
+    else:
+        lease = _lease.spawn(["/tmp/helper"])
+        assert lease["kind"] == "helper" and lease["command"] == helper["command"]
+        assert stopped == []
+
+
+def test_settled_row_refuses_a_command_that_keeps_changing(monkeypatch):
+    reads = []
+
+    def observed(pid):
+        reads.append(pid)
+        return {"stat": "S", "start": "Sat Oct 31 12:00:00 2026", "command": f"helper {len(reads)}"}
+
+    monkeypatch.setattr(_lease, "ps_one", observed)
+    monkeypatch.setattr(_lease.time, "sleep", lambda seconds: None)
+    with pytest.raises(ValueError, match="Refused.*did not settle"):
+        _lease.settled_row(6789)
+    assert reads == [6789] * 10
 
 
 def test_a_lease_file_other_users_could_read_is_not_trusted(lab):
