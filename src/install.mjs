@@ -185,7 +185,7 @@ function directoriesInside(roots, created) {
   });
 }
 
-function stagingCleanup(manifest, roots, source) {
+function stagingCleanup(manifest, roots, source, write) {
   let payload;
   return (manifest.staging || []).flatMap(stage => {
     const path = safePath(roots[stage.root], stage.path);
@@ -202,7 +202,10 @@ function stagingCleanup(manifest, roots, source) {
         payload ||= payloadFiles(roots, source);
         expected = payload.find(file => file.root === stage.root && file.path === stage.original)?.content;
       }
-      if (!expected || digest(expected) !== stage.hash) throw fail('Staging source changed');
+      if (!expected || digest(expected) !== stage.hash) {
+        write(`keep staged file: ${path} (staging source changed; review manually)`);
+        return [];
+      }
       const bytes = readFileSync(path);
       if (bytes.length > expected.length || !bytes.equals(expected.subarray(0, bytes.length))) throw fail('Staging content changed');
       return [{ path, expected, stage }];
@@ -325,7 +328,7 @@ export async function uninstallCommand(args = [], adapters = {}) {
   const roots = locations(options, adapters.env || process.env);
   const manifest = readManifest(roots);
   if (!manifest) throw fail(`Install manifest not found: ${join(roots.share, manifestName)}`);
-  const staged = stagingCleanup(manifest, roots, adapters.source || packageRoot);
+  const staged = stagingCleanup(manifest, roots, adapters.source || packageRoot, write);
   for (const entry of staged) write(`remove staged file: ${entry.path}`);
   const actions = [];
   for (const entry of manifest.files) {
@@ -352,6 +355,10 @@ export async function uninstallCommand(args = [], adapters = {}) {
     } else if (entry.settings) {
       const settings = readJson(path, 'settings');
       const cleaned = removeHooks(settings);
+      if (JSON.stringify(cleaned) === JSON.stringify(settings)) {
+        write(`keep: ${path} (settings contain no owned hooks)`);
+        continue;
+      }
       if (entry.backup) write(`keep backup: ${safePath(roots[entry.root], entry.backup.path)} (settings changed; restore manually if needed)`);
       actions.push({ entry, path, kind: 'unregister', content: format(cleaned) });
     } else {

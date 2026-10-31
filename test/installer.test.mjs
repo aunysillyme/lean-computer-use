@@ -323,11 +323,11 @@ test('partial install with overlapping roots has a recoverable pending manifest'
   assert.deepEqual(snapshot(value.state), before);
 });
 
-async function interruptedStage(value, kind, phase, occurrence = 1) {
+async function interruptedStage(value, kind, phase, occurrence = 1, args = []) {
   let saved;
   let count = 0;
-  await assert.rejects(installCommand([...value.args, '--yes'], { ...value.adapters, [phase](current, path) {
-    if (current === kind && ++count === occurrence) {
+  await assert.rejects(installCommand([...value.args, '--yes', ...args], { ...value.adapters, [phase](current, path) {
+    if (current === kind && (typeof occurrence === 'string' ? path.startsWith(join(value.dir, occurrence) + '.') : ++count === occurrence)) {
       saved = { path, content: readFileSync(path) };
       throw new Error('Synthetic stage interruption');
     }
@@ -370,21 +370,43 @@ test('staging changed after interruption keeps its journal for review', async t 
   assert.deepEqual(snapshot(value.state), []);
 });
 
-test('staging with an unavailable matching source keeps its journal for review', async t => {
+test('staging source changed after crash keeps temp and user file while uninstall continues', async t => {
   const value = setup(t);
-  await interruptedStage(value, 'payload', 'beforeRename');
+  const user = write(value.dir, 'skills/lean-computer-use/SKILL.md', 'User original\n');
+  const saved = await interruptedStage(value, 'payload', 'beforeRename', 2);
   const manifest = JSON.parse(readFileSync(join(value.share, 'install-manifest.json'), 'utf8'));
   const stage = manifest.staging.at(-1);
-  const source = join(value.source, stage.original);
-  const original = readFileSync(source);
-  writeFileSync(source, 'Different package version\n');
+  writeFileSync(join(value.source, stage.original), 'Different package version\n');
+  const lines = [];
   const before = snapshot(value.state);
-  await assert.rejects(uninstallCommand(value.args, value.adapters), /Pending staging needs review/);
+  const adapters = { ...value.adapters, write: line => lines.push(line) };
+  assert.equal(await uninstallCommand([...value.args, '--dry-run'], adapters), 0);
   assert.deepEqual(snapshot(value.state), before);
-  writeFileSync(source, original);
-  await uninstallCommand(value.args, value.adapters);
-  assert.deepEqual(snapshot(value.state), []);
+  assert.equal(await uninstallCommand(value.args, adapters), 0);
+  assert.deepEqual(readFileSync(saved.path), saved.content);
+  assert.equal(readFileSync(user, 'utf8'), 'User original\n');
+  assert.ok(lines.includes(`keep staged file: ${saved.path} (staging source changed; review manually)`));
+  assert.equal(existsSync(join(value.share, 'install-manifest.json')), false);
+  assert.equal(existsSync(join(value.share, 'desk')), false);
 });
+
+for (const kind of ['backup', 'payload']) {
+  test(`settings source changed after crash keeps ${kind} temp and user settings`, async t => {
+    const value = setup(t);
+    write(value.dir, 'settings.json', '{"custom":true}\n');
+    const saved = await interruptedStage(value, kind, 'beforeRename', 'settings.json', ['--with-hooks']);
+    const settings = join(value.dir, 'settings.json');
+    const edited = '{ \"custom\": \"edited after crash\" }\n';
+    writeFileSync(settings, edited);
+    const lines = [];
+    assert.equal(await uninstallCommand(value.args, { ...value.adapters, write: line => lines.push(line) }), 0);
+    assert.deepEqual(readFileSync(saved.path), saved.content);
+    assert.equal(readFileSync(settings, 'utf8'), edited);
+    assert.ok(lines.includes(`keep staged file: ${saved.path} (staging source changed; review manually)`));
+    assert.equal(existsSync(join(value.share, 'install-manifest.json')), false);
+    assert.equal(existsSync(join(value.share, 'desk')), false);
+  });
+}
 
 test('uninstall refuses a staging path that names a payload instead of a temporary file', async t => {
   const value = setup(t);

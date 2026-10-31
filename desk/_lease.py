@@ -488,17 +488,26 @@ def driver_diagnostics(launched_at, pid, table=None):
     return evidence
 
 
-def record_driver(launched_at, pid=None):
-    """Lease only the exact child PID returned by this launch, before readiness.
+def driver_pids(table=None):
+    """Snapshot all live driver PIDs using the cleanup signature."""
+    table = ps_table() if table is None else table
+    return {row["pid"] for row in table.values() if is_live(row) and DRIVER.match(row["command"])}
 
-    A launch timestamp alone proves no ownership, even if only one daemon is visible."""
-    if pid is None:
+
+def record_driver(before, table=None):
+    """Lease the single new driver PID absent from the pre-launch snapshot.
+
+    Start times identify the process for cleanup; their rounding never decides ownership."""
+    table = ps_table() if table is None else table
+    new = driver_pids(table) - before
+    if len(new) > 1:
+        raise ValueError("multiple new driver PIDs appeared; no driver leased or stopped")
+    if not new:
         return None
-    # Popen owns this exact PID. Startup and readiness may be arbitrarily far apart;
-    # second-resolution ps timestamps cannot establish that ownership.
-    row = settled_row(pid)
-    if not is_live(row) or row["uid"] != UID or live_kind(row["command"])[0] != "driver":
-        raise ValueError("the launched driver process cannot be identified")
+    pid = new.pop()
+    row = table[pid]
+    if row["uid"] != UID:
+        raise ValueError("the new driver process belongs to another user")
     known = read_leases()[0]
     existing = next((lease for lease in known if lease["pid"] == pid
                      and lease["start"] == row["start"] and lease["command"] == row["command"]), None)

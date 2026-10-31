@@ -9,12 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Leave an unleased idle driver running during `desk-clean` (#3).
 - Keep leased drivers running on failed, timed-out, unavailable or empty session probes, with an UNKNOWN reason (#4).
-- Lease the exact launched driver PID before readiness polling, including slow starts (#5).
+- Keep the exact new driver PID leased even when readiness times out, including slow starts (#5).
 - Accept custom `--dir` and `--share` roots in the doctor CLI (#7).
 - Persist a pending install manifest before payload writes so uninstall can recover interrupted installs and preserve user files and backups (#8).
 - Report invalid leases as UNKNOWN with their count and a review instruction (#9).
 - Include proof receipts and scripts in the package; identify regeneration as a source-checkout command (#11).
-- Lease the exact launched PID instead of selecting by `ps lstart` (#12). The old one-second cutoff could reject a fresh Linux child because `ps` reports whole seconds using a rounded boot epoch. Capture launch and polling times, `ps` deltas, `/proc` start ticks and clock resolution on failure. The historical CI trace still needs Linux confirmation.
+- Lease the exact new PID from a pre-launch driver snapshot instead of selecting by rounded `ps lstart` (#12). Launch through LaunchServices so macOS attributes permissions to CuaDriver.
 
 ## [0.1.2] - 2026-10-29
 

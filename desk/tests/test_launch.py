@@ -1,7 +1,5 @@
-"""Driver startup ownership is established before readiness, using a synthetic child."""
+"""LaunchServices startup ownership uses synthetic process snapshots."""
 import importlib.util
-import plistlib
-import signal
 import subprocess
 from pathlib import Path
 
@@ -13,110 +11,112 @@ DESK = Path(__file__).resolve().parents[1]
 @pytest.fixture
 def launch(monkeypatch, tmp_path):
     monkeypatch.syspath_prepend(str(DESK))
+    import _lease
     spec = importlib.util.spec_from_file_location("launch_resolver", DESK / "_resolve.py")
     resolver = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(resolver)
     monkeypatch.setattr(resolver, "STATE", tmp_path / "state")
-    monkeypatch.setattr(resolver, "DRIVER_APP", tmp_path / "CuaDriver.app")
-    contents = resolver.DRIVER_APP / "Contents"
-    contents.mkdir(parents=True)
-    (contents / "Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "cua-driver"}))
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(tmp_path / "leases"))
+    monkeypatch.setattr(resolver, "DRIVER_START_WAIT", 0.3)
+    clock = [0.0]
+    monkeypatch.setattr(resolver.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(resolver.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: False)
+    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a[0], 0))
+    monkeypatch.setattr(resolver.subprocess, "Popen", lambda *a, **k: pytest.fail("driver must launch via open"))
+    monkeypatch.setattr(_lease, "ps_table", lambda: {})
+    monkeypatch.setattr(resolver.os, "kill", lambda *a: pytest.fail("no process may be signalled"))
+    monkeypatch.setattr(resolver.os, "killpg", lambda *a: pytest.fail("no process group may be signalled"))
     return resolver
 
 
-def test_readiness_timeout_keeps_a_late_start_leased(launch, monkeypatch, tmp_path):
+def row(pid):
     import _lease
-    directory = tmp_path / "leases"
-    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(directory))
-    probes = []
-    child = subprocess.CompletedProcess([], None)
-    child.pid = 6789
-    clock = iter([0.0, 0.0, 0.0, 1.0])
-    monkeypatch.setattr(launch, "DRIVER_START_WAIT", 0.5)
-    monkeypatch.setattr(launch.time, "monotonic", lambda: next(clock))
-    monkeypatch.setattr(launch.time, "sleep", lambda seconds: None)
-    row = {"pid": child.pid, "ppid": 1, "uid": _lease.UID, "stat": "S",
-           "start": "Sat Oct 31 12:00:00 2026",
-           "command": str(launch.driver_executable()) + " serve"}
-    monkeypatch.setattr(_lease, "settled_row", lambda pid: row if pid == child.pid else None)
+    return {"pid": pid, "ppid": 1, "uid": _lease.UID, "stat": "S",
+            "start": "Sat Oct 31 12:00:00 2026", "command": "cua-driver serve"}
+
+
+def snapshots(monkeypatch, *tables):
+    import _lease
+    pending = list(tables)
+
+    def read():
+        return pending.pop(0) if len(pending) > 1 else pending[0]
+
+    monkeypatch.setattr(_lease, "ps_table", read)
+
+
+def test_launch_uses_launchservices_and_leases_only_the_new_pid(launch, monkeypatch):
+    import _lease
+    calls = []
+    snapshots(monkeypatch, {6788: row(6788)}, {pid: row(pid) for pid in (6788, 6789)})
+    answers = iter([False, True])
+    monkeypatch.setattr(launch, "driver_status", lambda timeout=5: next(answers))
+
+    def start(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(launch.subprocess, "run", start)
+    launch.ensure_driver()
+    assert calls == [["open", "-g", "-a", str(launch.DRIVER_APP), "--args", "serve"]]
+    [lease] = _lease.read_leases()[0]
+    assert lease["pid"] == 6789 and lease["start"] == row(6789)["start"]
+    assert lease["command"] == "cua-driver serve"
+
+
+def test_readiness_timeout_keeps_a_late_start_leased(launch, monkeypatch):
+    import _lease
+    snapshots(monkeypatch, {}, {6789: row(6789)})
 
     def status(timeout=5):
-        probes.append(len(_lease.read_leases(directory)[0]))
+        if timeout != 5:
+            launch.time.sleep(timeout)
+            raise launch.DeskError("cua-driver status timed out")
         return False
 
     monkeypatch.setattr(launch, "driver_status", status)
-    monkeypatch.setattr(launch.subprocess, "Popen", lambda *args, **kwargs: child)
     with pytest.raises(launch.DeskError, match="launch remains leased"):
         launch.ensure_driver()
-    assert probes == [0, 1]
-    leases = _lease.read_leases(directory)[0]
-    assert [entry["pid"] for entry in leases] == [child.pid]
-    assert _lease.evaluate(leases[0], {child.pid: row}, set())["state"] == "live"
-    # The same child may finish startup after the caller's readiness deadline.
+    [lease] = _lease.read_leases()[0]
+    assert lease["pid"] == 6789
+    assert _lease.evaluate(lease, {6789: row(6789)}, set())["state"] == "live"
     monkeypatch.setattr(launch, "driver_status", lambda timeout=5: True)
     launch.ensure_driver()
-    assert [entry["pid"] for entry in _lease.read_leases(directory)[0]] == [child.pid]
+    assert _lease.read_leases()[0] == [lease]
 
 
-def test_launch_uses_the_bundle_executable_and_a_fresh_session(launch, monkeypatch):
+@pytest.mark.parametrize("new_pids", [[], [6789, 6790]])
+def test_unprovable_launch_leases_and_stops_nothing(launch, monkeypatch, new_pids):
     import _lease
-    calls = []
-    answers = iter([False, True])
-    child = subprocess.CompletedProcess([], None)
-    child.pid = 6789
-
-    def start(command, **kwargs):
-        calls.append((command, kwargs))
-        return child
-
-    monkeypatch.setattr(launch, "driver_status", lambda timeout=5: next(answers))
-    monkeypatch.setattr(launch.subprocess, "Popen", start)
-    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: {"pid": pid})
-    launch.ensure_driver()
-    [command] = [call[0] for call in calls]
-    assert command == [str(launch.DRIVER_APP / "Contents" / "MacOS" / "cua-driver"), "serve"]
-    assert calls[0][1]["start_new_session"] is True
-    assert all(calls[0][1][name] == subprocess.DEVNULL for name in ("stdin", "stdout", "stderr"))
-
-
-@pytest.mark.parametrize("failure", ["raise", "empty"])
-def test_lease_failure_stops_only_the_launched_group(launch, monkeypatch, failure):
-    import _lease
-    ended = []
-
-    class Child:
-        pid = 6789
-
-        def wait(self, timeout):
-            ended.append(("wait", timeout))
-            return -signal.SIGKILL
-
-    def record(launched, pid=None):
-        if failure == "raise":
-            raise OSError("synthetic lease failure")
-        return None
-
-    monkeypatch.setattr(launch, "driver_status", lambda timeout=5: False)
-    monkeypatch.setattr(launch.subprocess, "Popen", lambda *args, **kwargs: Child())
-    monkeypatch.setattr(_lease, "record_driver", record)
-    monkeypatch.setattr(launch.os, "killpg", lambda pid, name: ended.append((pid, name)))
-    monkeypatch.setattr(launch, "driver_command", lambda *a, **k: pytest.fail("shared stop is forbidden"))
-    with pytest.raises(launch.DeskError, match="it was stopped"):
+    snapshots(monkeypatch, {6788: row(6788)}, {pid: row(pid) for pid in [6788, *new_pids]})
+    message = "multiple new driver PIDs" if new_pids else "no new driver PID"
+    with pytest.raises(launch.DeskError, match=message):
         launch.ensure_driver()
-    assert ended == [(Child.pid, signal.SIGKILL), ("wait", 5)]
+    assert _lease.read_leases()[0] == []
 
 
-@pytest.mark.parametrize("executable", ["", "..", "../other", "dir/other", "bad\nname", ["cua-driver"]])
-def test_app_executable_metadata_must_name_one_file(launch, executable):
-    (launch.DRIVER_APP / "Contents" / "Info.plist").write_bytes(
-        plistlib.dumps({"CFBundleExecutable": executable}))
-    with pytest.raises(launch.DeskError, match="invalid app executable metadata"):
-        launch.driver_executable()
+def test_second_new_pid_during_readiness_is_ambiguous(launch, monkeypatch):
+    import _lease
+    snapshots(monkeypatch, {}, {6789: row(6789)}, {pid: row(pid) for pid in (6789, 6790)})
+    with pytest.raises(launch.DeskError, match="multiple new driver PIDs"):
+        launch.ensure_driver()
+    assert _lease.read_leases()[0] == []
+
+
+def test_lease_write_failure_leaves_the_driver_running(launch, monkeypatch):
+    import _lease
+    snapshots(monkeypatch, {}, {6789: row(6789)})
+    answers = iter([False, True])
+    monkeypatch.setattr(launch, "driver_status", lambda timeout=5: next(answers))
+    monkeypatch.setattr(_lease, "write_lease", lambda *a: (_ for _ in ()).throw(OSError("synthetic lease failure")))
+    with pytest.raises(launch.DeskError, match="cannot record a lease"):
+        launch.ensure_driver()
+    assert _lease.read_leases()[0] == []
 
 
 def test_state_failure_precedes_launch(launch, monkeypatch):
-    monkeypatch.setattr(launch, "driver_status", lambda timeout=5: False)
-    monkeypatch.setattr(launch.subprocess, "Popen", lambda *a, **k: pytest.fail("launch must follow state writes"))
+    monkeypatch.setattr(launch.subprocess, "run", lambda *a, **k: pytest.fail("launch must follow state writes"))
     monkeypatch.setattr(launch.os, "open", lambda *a, **k: (_ for _ in ()).throw(OSError("state unavailable")))
     with pytest.raises(OSError, match="state unavailable"):
         launch.ensure_driver()

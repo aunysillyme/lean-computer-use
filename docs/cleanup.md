@@ -38,7 +38,7 @@ npx lean-computer-use spawn -- <command> [args]
 
 `spawn` starts the command detached, records the lease and returns. A browser or a desktop app executable is refused before it starts, and a process whose lease cannot be written is stopped again. `--session ID` and `--run NAME` label the lease.
 
-`desk` launches the executable inside `CuaDriver.app` in its own process group and records its exact PID before waiting for readiness. A slow start keeps its lease after the readiness timeout. A lease write failure stops only that new process group. The installed driver's foreground `serve` behavior and macOS permissions need verification for your vendor build.
+`desk` snapshots live driver PIDs, then launches through LaunchServices with `open -g -a /Applications/CuaDriver.app --args serve`. This preserves CuaDriver's macOS permission identity. It polls for readiness and exactly one new driver PID for up to 10 seconds, then leases that PID with its start time and exact command. Rounded start times never decide ownership. A slow start keeps its lease after the readiness timeout. No new PID or multiple new PIDs produces an error with no lease or driver stop. A lease write failure leaves drivers running and reports the error.
 
 ## What it ends
 

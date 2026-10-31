@@ -733,23 +733,23 @@ def _driver_cli(desktop, monkeypatch, capsys, script, *args):
     for key, value in desktop.env.items():
         monkeypatch.setenv(key, value)
     resolver = _resolver(monkeypatch, desktop.root)
-    executable = desktop.root / "fake-app-executable"
-    monkeypatch.setattr(resolver, "driver_executable", lambda: executable)
-    original_popen = subprocess.Popen
+    original_run = subprocess.run
+    monkeypatch.setattr(_lease, "driver_pids", lambda table=None: set())
+    monkeypatch.setattr(_lease, "ps_table", lambda: {})
     launches = []
 
     def start(command, **kwargs):
-        if command != [str(executable), "serve"]:
-            return original_popen(command, **kwargs)
+        if command != ["open", "-g", "-a", str(resolver.DRIVER_APP), "--args", "serve"]:
+            return original_run(command, **kwargs)
         launches.append(command)
         if desktop.responses.get("_launch_fails"):
             raise OSError("synthetic launch failure")
         if desktop.responses.get("_open_starts", True):
             Path(desktop.env["FAKE_DRIVER_STATE"]).write_text("running")
-        return SimpleNamespace(pid=6789)
+        return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(resolver.subprocess, "Popen", start)
-    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: {"pid": pid})
+    monkeypatch.setattr(resolver.subprocess, "run", start)
+    monkeypatch.setattr(_lease, "record_driver", lambda before, table=None: {"pid": 6789})
     monkeypatch.setattr(sys, "argv", [str(DESK_DIR / script), BUNDLE, *args])
     with pytest.raises(SystemExit) as exited:
         runpy.run_path(str(DESK_DIR / script), run_name="__main__")
@@ -782,7 +782,7 @@ def test_driver_open_failure_exits_two_without_desktop_calls(desktop, monkeypatc
     result = _driver_cli(desktop, monkeypatch, capsys, "desk", "click", "{}")
     assert result.returncode == 2
     assert len(result.stderr.splitlines()) == 1
-    assert "app executable unavailable" in result.stderr
+    assert "LaunchServices unavailable" in result.stderr
     assert not desktop.log.exists()
 
 
@@ -895,9 +895,10 @@ def _resolver(monkeypatch, tmp_path):
 def _fake_driver_start(resolver, monkeypatch):
     import _lease
     from types import SimpleNamespace
-    monkeypatch.setattr(resolver, "driver_executable", lambda: Path("/synthetic/cua-driver"))
-    monkeypatch.setattr(resolver.subprocess, "Popen", lambda *a, **k: SimpleNamespace(pid=6789))
-    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: {"pid": pid})
+    monkeypatch.setattr(resolver.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0))
+    monkeypatch.setattr(_lease, "driver_pids", lambda table=None: set())
+    monkeypatch.setattr(_lease, "ps_table", lambda: {})
+    monkeypatch.setattr(_lease, "record_driver", lambda before, table=None: {"pid": 6789})
 
 
 def test_slow_status_probe_keeps_polling_until_daemon_runs(monkeypatch, tmp_path):
@@ -924,25 +925,21 @@ def test_open_timeout_is_reported_as_itself_not_as_a_missing_window(monkeypatch,
     def failed_start(*args, **kwargs):
         raise OSError("synthetic launch failure")
 
-    monkeypatch.setattr(resolver.subprocess, "Popen", failed_start)
-    with pytest.raises(resolver.DeskError, match="app executable unavailable"):
+    monkeypatch.setattr(resolver.subprocess, "run", failed_start)
+    with pytest.raises(resolver.DeskError, match="LaunchServices unavailable"):
         resolver.resolve("com.apple.calculator")
 
 
-def test_driver_started_by_desk_is_stopped_when_its_lease_cannot_be_recorded(monkeypatch, tmp_path):
+def test_driver_started_by_desk_stays_running_when_its_lease_cannot_be_recorded(monkeypatch, tmp_path):
     resolver = _resolver(monkeypatch, tmp_path)
     _fake_driver_start(resolver, monkeypatch)
     import _lease
-    from types import SimpleNamespace
-    stops = []
-    child = SimpleNamespace(pid=6789, wait=lambda timeout: stops.append(("wait", timeout)))
-    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: False)
-    monkeypatch.setattr(resolver.subprocess, "Popen", lambda *a, **k: child)
-    monkeypatch.setattr(resolver.os, "killpg", lambda pid, sig: stops.append((pid, sig)))
-    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: (_ for _ in ()).throw(OSError("lease directory unusable")))
+    answers = iter([False, True])
+    monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: next(answers))
+    monkeypatch.setattr(resolver.os, "killpg", lambda *a: pytest.fail("LaunchServices drivers stay running"))
+    monkeypatch.setattr(_lease, "record_driver", lambda before, table=None: (_ for _ in ()).throw(OSError("lease directory unusable")))
     with pytest.raises(resolver.DeskError, match="cannot record a lease"):
         resolver.ensure_driver()
-    assert stops == [(child.pid, signal.SIGKILL), ("wait", 5)]
 
 
 def test_driver_started_by_desk_is_leased_for_this_session(monkeypatch, tmp_path):
@@ -952,9 +949,9 @@ def test_driver_started_by_desk_is_leased_for_this_session(monkeypatch, tmp_path
     seen = []
     answers = [False, True]
     monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: answers.pop(0))
-    monkeypatch.setattr(_lease, "record_driver", lambda launched, pid=None: seen.append((launched, pid)) or {"pid": pid})
+    monkeypatch.setattr(_lease, "record_driver", lambda before, table=None: seen.append(before) or {"pid": 6789})
     resolver.ensure_driver()
-    assert len(seen) == 1 and seen[0][0] <= time.time() and seen[0][1] == 6789
+    assert seen == [set()]
     # A daemon that was already running is never leased.
     monkeypatch.setattr(resolver, "driver_status", lambda timeout=5: True)
     resolver.ensure_driver()

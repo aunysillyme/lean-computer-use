@@ -47,7 +47,7 @@ Keep credentials and other sensitive content out of app briefs.
 
 ## Use and close
 
-`desk` starts the executable inside `CuaDriver.app` on demand and leases its PID before waiting for readiness. Verify foreground `serve` behavior and macOS permission identity against your installed vendor build.
+`desk` starts CuaDriver through LaunchServices with `open -g -a /Applications/CuaDriver.app --args serve` so macOS attributes Accessibility and Screen Recording to `com.trycua.driver`. It snapshots live driver PIDs before launch and polls for exactly one new PID, recording its start time and command for cleanup. Rounded start times never decide ownership. Readiness timeout keeps a discovered new PID leased; absent or ambiguous new PIDs leave all drivers unleased and running. Verify permissions against your installed vendor build.
 After a run, call `desk-clean <bundle> --app-name <Name>`.
 Add `--launched-by-run` only when the initial snapshot showed the app closed and this run launched it.
 This requests a gentle quit, removes owned desk state and stops a provably leased driver when no live sessions remain. A driver started independently stays running.

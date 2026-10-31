@@ -2,9 +2,7 @@
 """Shared cua-driver calls, app resolution and private desk state."""
 import json
 import os
-import plistlib
 import re
-import signal
 import stat
 import subprocess
 import tempfile
@@ -95,76 +93,57 @@ def driver_status(timeout=5):
     return None
 
 
-def driver_executable():
-    """Launch the executable named by the installed app's metadata."""
-    try:
-        with (DRIVER_APP / "Contents" / "Info.plist").open("rb") as handle:
-            metadata = plistlib.load(handle)
-            executable = metadata.get("CFBundleExecutable") if isinstance(metadata, dict) else None
-    except (OSError, ValueError, plistlib.InvalidFileException):
-        raise DeskError("cannot start cua-driver: app executable metadata unavailable") from None
-    if (not isinstance(executable, str) or executable in ("", ".", "..")
-            or "/" in executable or "\\" in executable
-            or any(ord(char) < 32 or ord(char) == 127 for char in executable)):
-        raise DeskError("cannot start cua-driver: invalid app executable metadata")
-    return DRIVER_APP / "Contents" / "MacOS" / executable
-
-
-def record_driver_lease(launched, child):
-    """Lease the exact child before readiness; stop its fresh group if recording fails."""
-    try:
-        from _lease import record_driver
-        lease = record_driver(launched, pid=child.pid)
-        if lease is None:
-            raise ValueError("launched process could not be identified")
-        return lease
-    except Exception:
-        # The child has not been waited on, so its pid cannot have been reused.
-        # Its new session contains only this launch and its own descendants.
-        try:
-            os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except OSError:
-            raise DeskError("cannot record a cua-driver lease; launch teardown failed") from None
-        try:
-            child.wait(timeout=5)
-        except (OSError, subprocess.TimeoutExpired):
-            raise DeskError("cannot record a cua-driver lease; launch teardown failed") from None
-        raise DeskError("cannot record a lease for the cua-driver process this call started; it was stopped") from None
-
-
 def ensure_driver():
     if driver_status() is True:
         return
     prepare_state()
-    executable = driver_executable()
-    # Create state before launching: a state-write failure must leave no child.
+    # Create state before launching: a state-write failure must leave no daemon.
     fd = os.open(STATE / DRIVER_MARKER,
                  os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w") as handle:
         os.fchmod(handle.fileno(), 0o600)
-    launched = time.time()
+    from _lease import driver_pids, ps_table, record_driver
     try:
-        child = subprocess.Popen([str(executable), "serve"], stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                 start_new_session=True)
+        before = driver_pids()
+    except (OSError, subprocess.TimeoutExpired):
+        raise DeskError("cannot start cua-driver: driver PID snapshot unavailable") from None
+    try:
+        result = subprocess.run(["open", "-g", "-a", str(DRIVER_APP), "--args", "serve"],
+                                capture_output=True, text=True, timeout=DRIVER_START_WAIT)
     except OSError:
-        raise DeskError("cannot start cua-driver: app executable unavailable") from None
-    record_driver_lease(launched, child)
+        raise DeskError("cannot start cua-driver: LaunchServices unavailable") from None
+    except subprocess.TimeoutExpired:
+        raise DeskError("cannot start cua-driver: LaunchServices timed out") from None
+    if result.returncode:
+        raise DeskError(f"cannot start cua-driver: LaunchServices exited {result.returncode}")
     deadline = time.monotonic() + DRIVER_START_WAIT
+    seen = set()
     while True:
         remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            # Startup may finish later; the child and its descendants already have a lease.
-            raise DeskError("cannot start cua-driver: daemon not running within 10 s; launch remains leased")
+        ready = False
+        if remaining > 0:
+            try:
+                ready = driver_status(min(2, remaining)) is True
+            except DeskError as error:
+                # A slow probe may consume the deadline; still discover a late daemon.
+                if "timed out" not in str(error):
+                    raise
         try:
-            if driver_status(min(2, remaining)) is True:
+            table = ps_table()
+            seen.update(driver_pids(table) - before)
+            if len(seen) > 1:
+                raise ValueError("multiple new driver PIDs appeared; no driver leased or stopped")
+            expired = time.monotonic() >= deadline
+            # Defer the lease until ready or timed out, so ambiguous starts stay unleased.
+            lease = record_driver(before, table) if ready or expired else None
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            raise DeskError(f"cannot record a lease for cua-driver: {error}; drivers left running") from None
+        if lease:
+            if ready:
                 return
-        except DeskError as error:
-            # One slow status probe is not a failed start; keep polling until the deadline.
-            if "timed out" not in str(error):
-                raise
+            raise DeskError("cannot start cua-driver: daemon not running within 10 s; launch remains leased")
+        if expired:
+            raise DeskError("cannot start cua-driver: no new driver PID appeared; no driver leased or stopped")
         time.sleep(min(0.1, max(0, deadline - time.monotonic())))
 
 

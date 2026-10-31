@@ -35,7 +35,8 @@ An interrupted install remains pending: run `uninstall` with the same `--dir` an
 Recovery removes matching installed files, restores recorded originals and keeps user edits and earlier backups for review.
 An upgrade records the previous installed hash until completion, so recovery also recognizes files it had yet to replace.
 Recovery removes complete or partial staged bytes only when they match the recorded package payload or original backup source.
-Changed or unverifiable staging keeps the pending manifest and reports the exact path for review.
+A changed staging source keeps the temporary file, reports its exact path for review and lets recovery continue.
+Changed staging contents with a matching source keep the pending manifest for review.
 
 The installer previews before mutation and asks `y/N` unless `--yes` is supplied.
 A non-interactive install requires `--yes`.

@@ -265,6 +265,7 @@ def test_a_driver_with_live_sessions_is_left_running(lab):
 def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkeypatch):
     old = lab.start("cua-driver", extra=["serve"])
     assert _lease.settled_row(old) is not None
+    before = _lease.driver_pids()
     marker = time.time()
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
@@ -275,7 +276,7 @@ def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkey
     evidence = _lease.driver_diagnostics(marker, new)
     began = time.monotonic()
     try:
-        _lease.record_driver(marker, pid=new)
+        _lease.record_driver(before)
     except Exception as error:
         evidence["after"] = _lease.driver_diagnostics(marker, new)
         evidence["poll_seconds"] = time.monotonic() - began
@@ -285,7 +286,7 @@ def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkey
     assert [l["pid"] for l in leases] == [new], json.dumps(evidence, indent=2)
     assert leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
     assert alive(old)
-    _lease.record_driver(marker, pid=new)
+    _lease.record_driver(before)
     assert len(_lease.read_leases(lab.leases)[0]) == 1
 
 
@@ -305,9 +306,10 @@ def test_driver_lease_uses_owned_pid_despite_rounded_start_time(tmp_path, monkey
 
     monkeypatch.setattr(_lease, "settled_row", settled)
     launched = time.mktime(time.strptime(start, "%a %b %d %H:%M:%S %Y")) + reported_age
-    # Both daemons can report the same second. Only the Popen child belongs to this launch.
-    lease = _lease.record_driver(launched, pid=6789)
-    assert lease["pid"] == 6789 and reads == [6789]
+    monkeypatch.setattr(_lease.time, "time", lambda: launched)
+    # Both daemons can report the same second. Only the new PID belongs to this launch.
+    lease = _lease.record_driver({6788})
+    assert lease["pid"] == 6789 and reads == []
     assert [entry["pid"] for entry in _lease.read_leases(directory)[0]] == [6789]
 
 
@@ -359,11 +361,12 @@ def test_a_lease_file_other_users_could_read_is_not_trusted(lab):
 
 
 def test_two_new_daemons_are_ambiguous_and_neither_is_leased(lab, monkeypatch):
-    marker = time.time()
+    before = _lease.driver_pids()
     lab.start("cua-driver", extra=["serve"])
     lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
-    assert _lease.record_driver(marker) is None
+    with pytest.raises(ValueError, match="multiple new driver PIDs"):
+        _lease.record_driver(before)
     assert _lease.read_leases(lab.leases)[0] == []
 
 
