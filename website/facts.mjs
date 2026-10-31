@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripHtml } from './html.mjs';
 
 const site = 'https://lean-computer-use.aunysillyme.dev/';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
@@ -10,9 +11,7 @@ const requireFact = (ok, message) => { if (!ok) throw Error(message); };
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function visibleText(html) {
-  return compact(html.replace(/<!--[^]*?-->/g, '').replace(/<(script|style)\b[^]*?<\/\1>/gi, '')
-    .replace(/<\/?(?:a|code|strong|em|span|time)\b[^>]*>/gi, '')
-    .replace(/<[^>]*>/g, ' ').replace(/&(?:amp|lt|gt|quot|#39);/g, entity => ({
+  return compact(stripHtml(html, ' ', true).replace(/&(?:amp|lt|gt|quot|#39);/g, entity => ({
       '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'",
     })[entity]));
 }
