@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-01
+
+0.1.3 was tagged but not published to npm; 0.1.4 carries its changes.
+
 ### Fixed
 
 - Fix website checker slowness from the HTML scanner with forward scans and joined output chunks.
@@ -73,7 +77,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Installer, owned-file uninstall, environment doctor and transcript measurement.
 - Package proof, privacy checks and repository workflows.
 
-[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.0...v0.1.1
