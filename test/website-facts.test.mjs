@@ -162,6 +162,11 @@ test('RED real command prefixes and documented flags reject planted violations',
   assert.doesNotThrow(() => validateTools(root, facts.tools));
 });
 
+test('closed Projects panel does not count as visible landing copy', () => {
+  const expanded = html.replace('data-projects-panel id="projects-popup" hidden>', `data-projects-panel id="projects-popup" hidden><div><div>Nested</div></div>${'computer use '.repeat(30)}`);
+  assert.doesNotThrow(() => validateKeywords(facts, expanded));
+});
+
 test('RED keyword H1 rule rejects a planted heading and accepts both headline lines', () => {
   assert.throws(() => validateKeywords(facts, html.replace('Let your AI use Mac apps.', 'Other headline')), /H1/);
   assert.doesNotThrow(() => validateKeywords(facts, html));

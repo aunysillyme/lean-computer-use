@@ -38,7 +38,7 @@ function files(dir, prefix = '') {
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'website-build-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs'];
+  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs', '.repo-build/set.json'];
   inputs.push(...JSON.parse(read(root, 'website/tools.json')).flatMap(tool => tool.source));
   for (const folder of ['docs', 'skills', 'desk', 'hooks', 'agents', 'briefs', 'proof', 'website']) {
     // Desk and hook tests create and remove .desk-test-*, .hook-test-* and .gate-test-* folders while suites run in parallel.
@@ -101,7 +101,16 @@ test('landing cards and action buttons start with a decorative border ray', t =>
   const toggle = html.match(/<button[^>]*trailer-toggle[^]*?<\/button>/)[0];
   assert.ok(toggle.includes('icon-pause') && toggle.includes('icon-play') && toggle.includes('data-button-label'), 'small icon pause button with hidden label');
   assert.doesNotMatch(html.match(/<aside\b[^]*?<\/aside>/)[0], /card-trace/);
-  assert.doesNotMatch(html.match(/<header\b[^]*?<\/header>/)[0], /card-trace/);
+  // The Projects popup carries its own rays; the rest of the header stays plain.
+  const header = html.match(/<header\b[^]*?<\/header>/)[0];
+  assert.doesNotMatch(header.replace(/<div class="projects-popup"[\s\S]*?<\/ul><\/div><\/div>/, ''), /card-trace/);
+  const links = header.match(/<a class="projects-popup__link"[\s\S]*?<\/a>/g) || [];
+  assert.equal(links.length, 6);
+  for (const link of links) {
+    assert.match(link, /class="card-trace"/);
+    assert.match(link, /https:\/\/[a-z-]+\.aunysillyme\.dev/);
+  }
+  assert.match(header, /data-projects-trigger/);
 });
 
 test('docs tool and proof cards have rays while prose code blocks keep their markup', t => {
@@ -353,6 +362,24 @@ test('RED build imports keep the zero dependency boundary', () => {
   };
   assert.throws(() => check(code + "\nimport 'unexpected-package';\n"));
   check(code);
+});
+
+test('Projects header and sibling links follow the pinned set on every page', t => {
+  const dir = fixture(t);
+  const set = JSON.parse(read(dir, '.repo-build/set.json'));
+  set.rows.push({ name: 'example-project', url: 'https://github.com/aunysillyme/example-project', line: 'Example: description' });
+  write(dir, '.repo-build/set.json', JSON.stringify(set));
+  const output = built(dir);
+  for (const [route, html] of htmlPages(output)) {
+    const header = html.match(/<header\b[^]*?<\/header>/)[0];
+    assert.match(header, /data-projects-trigger href="https:\/\/aunysillyme\.dev\/#projects"/);
+    assert.match(header, /href="https:\/\/lean-computer-use\.aunysillyme\.dev" aria-current="page"/);
+    assert.match(header, /href="https:\/\/example-project\.aunysillyme\.dev"/);
+    assert.match(header, /GitHub ↗/);
+    assert.match(header, /npm ↗/);
+    assert.ok(html.includes('https://github.com/aunysillyme/example-project'), route);
+    assert.equal((html.match(/src="\/assets\/projects-popup\.js" defer/g) || []).length, 1);
+  }
 });
 
 test('Speed Insights loads once after its queue and site-type is app on every page in both modes', t => {

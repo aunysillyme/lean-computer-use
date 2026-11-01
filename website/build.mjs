@@ -11,6 +11,7 @@ const origin = 'https://lean-computer-use.aunysillyme.dev';
 const repository = 'https://github.com/aunysillyme/lean-computer-use';
 import { checkCopyPins } from './check.mjs';
 import { assets, media, fontStylesheet, csp } from './resources.mjs';
+import { renderProjectsPopup } from './projects-popup-render.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const json = (root, file) => JSON.parse(read(root, file));
 const requireValue = (ok, message) => { if (!ok) throw Error(message); };
@@ -231,8 +232,21 @@ function docsBody(root, page, facts) {
   return `<article class="markdown">${chunks.join('\n')}${toolBlocks(page, facts, ids)}</article>`;
 }
 
+// The pinned set is the one source for the Projects popup and every sibling list.
+function setRows(root) {
+  const set = json(root, '.repo-build/set.json');
+  requireValue(set.version === 1 && Array.isArray(set.rows) && set.rows.length > 0, 'Invalid set: .repo-build/set.json needs version 1 and rows');
+  for (const row of set.rows) requireValue(row.name && row.url && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.name), `Invalid set row: ${row.name}`);
+  return set.rows;
+}
+
 function siblings(root) {
-  return [...section(read(root, 'README.md'), 'Part of a set').matchAll(/\[([^\]]+)\]\((https:\/\/github\.com\/aunysillyme\/[^)]+)\)/g)].map(([, name, href]) => ({ name, href }));
+  const current = json(root, 'package.json').name;
+  return setRows(root).filter(row => row.name !== current).map(row => ({ name: row.name, href: row.url }));
+}
+
+function projectsPopup(root) {
+  return renderProjectsPopup({ rows: setRows(root), current: json(root, 'package.json').name, id: 'projects-popup', fallbackHref: 'https://aunysillyme.dev/#projects' });
 }
 
 function flow(facts) {
@@ -311,7 +325,9 @@ ${!live || notFound ? '<meta name="robots" content="noindex">' : `<link rel="des
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="${escape(fontStylesheet)}" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/projects-popup.css">
 <script src="/assets/site.js" defer></script>
+<script src="/assets/projects-popup.js" defer></script>
 <script src="/assets/speed-insights.js" defer></script>
 <script src="/_vercel/speed-insights/script.js" defer></script>
 <script type="module" src="/assets/navigation.js"></script>
@@ -331,7 +347,7 @@ function documentBody(page, body) {
 
 function template(root, page, body, facts, live, commit, notFound = false) {
   const file = page.route === '/' && !notFound ? 'landing.template.html' : 'doc.template.html';
-  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="${page.route === '/' ? 'https://aunysillyme.dev/' : '/'}"><img src="/assets/avatar.png" alt="AunySillyMe"><span>${page.route === '/' ? 'AunySillyMe.dev' : escape(content.brand)}</span>${page.route === '/' ? `<span class="slash">/</span><b>${escape(content.brand)}</b>` : ''}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}">${page.route === '/' ? `<span class="pill"><i class="dot"></i><span>v${escape(facts.version)}</span></span>` : '<a href="/">Home</a>'}<a href="${repository}">GitHub ↗</a>${page.route === '/' ? `<a href="${facts.npm}">npm ↗</a>` : ''}</nav></header>`;
+  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="${page.route === '/' ? 'https://aunysillyme.dev/' : '/'}"><img src="/assets/avatar.png" alt="AunySillyMe"><span>${page.route === '/' ? 'AunySillyMe.dev' : escape(content.brand)}</span>${page.route === '/' ? `<span class="slash">/</span><b>${escape(content.brand)}</b>` : ''}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}">${page.route === '/' ? `<span class="pill"><i class="dot"></i><span>v${escape(facts.version)}</span></span>` : '<a href="/">Home</a>'}${projectsPopup(root)}<a href="${repository}">GitHub ↗</a><a href="${facts.npm}">npm ↗</a></nav></header>`;
   const mobileNav = `<details class="mobile-nav"><summary>${page.route === '/' ? content.onThisPage : 'Documentation'}</summary><nav aria-label="Mobile documentation">${navLinks(page)}</nav></details>`;
   const values = { head: head(page, facts, live, notFound), header, sidebar: sidebar(root, page), mobileNav, body, footer: footer(commit), pageClass: file.startsWith('doc') ? 'document' : 'landing' };
   return read(root, `website/${file}`).replace(/\{\{(\w+)\}\}/g, (_, key) => {
