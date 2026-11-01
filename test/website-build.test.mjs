@@ -269,7 +269,7 @@ test('RED source sanitization removes executable script and inline event handler
   write(dir, 'docs/METHOD.md', read(dir, 'docs/METHOD.md') + '\n\n' + payload + '\n');
   const html = read(built(dir), 'docs/how-it-works/index.html');
   const check = value => {
-    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script>/gi)) assert.ok(!script[1].includes('sourcePayload'));
+    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script\b[^>]*>/gi)) assert.ok(!script[1].includes('sourcePayload'));
     assert.doesNotMatch(value, /<[^>]+\son[a-z]+\s*=/i);
     assert.ok(text(value).includes('Safe source text'));
   };
