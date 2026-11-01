@@ -202,8 +202,8 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
     check(links('canonical').length === 1 && links('canonical')[0].attrs.href === origin + route, file, 'wrong canonical');
     const policies = tags('meta').filter(node => node.attrs['http-equiv']?.toLowerCase() === 'content-security-policy');
     check(policies.length === 1 && policies[0].attrs.content === csp, file, 'resource CSP differs from policy');
-    const siteTypes = meta('site-type');
-    check(siteTypes.length === 1 && siteTypes[0].attrs.content === 'app', file, 'expected one site-type meta tag with content app');
+    const siteTypes = meta('is-agentic-site-type');
+    check(siteTypes.length === 1 && siteTypes[0].attrs.content === 'app', file, 'expected one is-agentic-site-type meta tag with content app');
     const queue = tags('script').filter(node => node.attrs.src === '/assets/speed-insights.js');
     const insights = tags('script').filter(node => node.attrs.src === '/_vercel/speed-insights/script.js');
     check(queue.length === 1 && insights.length === 1, file, 'expected one Speed Insights queue and script');

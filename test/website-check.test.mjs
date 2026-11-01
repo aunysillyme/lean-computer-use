@@ -142,9 +142,9 @@ red('100 x 100 PNG', dir => {
 }, /expected a 1200 x 630 PNG/, { live: true });
 red('sitemap with ten URLs', dir => edit(dir, 'sitemap.xml', xml => xml.replace('</urlset>', '<url><loc>https://lean-computer-use.aunysillyme.dev/extra/</loc></url></urlset>')), /sitemap must list exactly/, { live: true });
 red('external script tag', dir => append(dir, doc, '<script src="https://example.org/test.js"></script>'), /external resource: script/);
-red('missing site-type meta tag', dir => edit(dir, doc, html => html.replace('<meta name="site-type" content="app">', '')), /expected one site-type meta tag with content app/);
-red('wrong site-type', dir => edit(dir, doc, html => html.replace('name="site-type" content="app"', 'name="site-type" content="docs"')), /expected one site-type meta tag with content app/, { live: true });
-red('duplicate site-type meta tag', dir => edit(dir, doc, html => html.replace('</head>', '<meta name="site-type" content="app"></head>')), /expected one site-type meta tag with content app/);
+red('missing is-agentic-site-type meta tag', dir => edit(dir, doc, html => html.replace('<meta name="is-agentic-site-type" content="app">', '')), /expected one is-agentic-site-type meta tag with content app/);
+red('wrong is-agentic-site-type', dir => edit(dir, doc, html => html.replace('name="is-agentic-site-type" content="app"', 'name="is-agentic-site-type" content="docs"')), /expected one is-agentic-site-type meta tag with content app/, { live: true });
+red('duplicate is-agentic-site-type meta tag', dir => edit(dir, doc, html => html.replace('</head>', '<meta name="is-agentic-site-type" content="app"></head>')), /expected one is-agentic-site-type meta tag with content app/);
 red('unknown Vercel script path', dir => append(dir, doc, '<script src="/_vercel/other.js"></script>'), /unresolved file/);
 red('Speed Insights path on an image', dir => append(dir, doc, '<img src="/_vercel/speed-insights/script.js" alt="Test">'), /unresolved file/);
 red('missing Speed Insights script', dir => edit(dir, doc, html => html.replace('<script src="/_vercel/speed-insights/script.js" defer></script>', '')), /expected one Speed Insights queue and script/);
