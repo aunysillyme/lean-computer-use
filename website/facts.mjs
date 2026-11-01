@@ -104,8 +104,28 @@ function elements(html, attribute, tag = '[a-z][a-z0-9]*') {
   return [...html.matchAll(new RegExp(`<(${tag})\\b[^>]*\\b${attribute}(?:="([^"]*)")?[^>]*>([^]*?)<\\/\\1>`, 'gi'))];
 }
 
+// Closed navigation content is not visible page copy.
+const withoutClosedProjects = html => {
+  const panel = /<div\b[^>]*\bdata-projects-panel\b[^>]*\bhidden\b[^>]*>/gi;
+  let match;
+  while ((match = panel.exec(html))) {
+    const tags = /<\/?div\b[^>]*>/gi;
+    tags.lastIndex = panel.lastIndex;
+    let depth = 1;
+    let tag;
+    while ((tag = tags.exec(html))) {
+      depth += /^<\//.test(tag[0]) ? -1 : 1;
+      if (depth === 0) break;
+    }
+    if (!tag) break;
+    html = html.slice(0, match.index) + html.slice(tags.lastIndex);
+    panel.lastIndex = match.index;
+  }
+  return html;
+};
+
 export function keywordCounts(facts, html) {
-  const text = visibleText(html.match(/<body\b[^>]*>([^]*?)<\/body>/i)?.[1] || '');
+  const text = visibleText(withoutClosedProjects(html).match(/<body\b[^>]*>([^]*?)<\/body>/i)?.[1] || '');
   const vocabulary = [...facts.keywords, ...facts.faq.map(row => row.question),
     'computer use', 'native Mac apps', 'background', 'Claude Code', 'subagent', 'tokens', 'accessibility', 'cua-driver', 'hooks', 'transcript',
     ...facts.tools.flatMap(tool => [tool.keywords.primary, ...tool.keywords.secondary])];
@@ -121,7 +141,7 @@ export function validateToolHeading(tool, block) {
 
 export function validateKeywords(facts, html) {
   const body = html.match(/<body\b[^>]*>([^]*?)<\/body>/i)?.[1] || '';
-  const text = visibleText(body);
+  const text = visibleText(withoutClosedProjects(body));
   const h1 = [...body.matchAll(/<h1\b[^>]*>([^]*?)<\/h1>/gi)];
   requireFact(h1.length === 1, 'H1 must occur exactly once');
   const first = text.split(/\s+/).slice(0, 100).join(' ');

@@ -12,7 +12,7 @@ setupTrailer pattern in assets/trailer.js with local media and a pause button.
 The copied CSS defines the exact colors, type, spacing, breakpoints and components:
 background #050806, panel #0a100c, border #20382a, text #b6cfbf,
 muted #8ba996, accent #3df07a and heading #e0f0e5.
-Cormorant Garamond supplies headings. JetBrains Mono supplies body and UI text.
+JetBrains Mono supplies headings (weight 500) and body and UI text (weight 400), matching aunysillyme.dev.
 The desktop shell uses a sticky header and sidebar. Mobile uses a details accordion.
 The hero, routing card, trust strip, feature columns, code panel, document cards,
 proof table and footer share the reference classes. Product additions follow the

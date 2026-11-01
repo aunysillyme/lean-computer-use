@@ -38,7 +38,8 @@ Rendering is a separate asset preparation step, outside the site build.
 ## Reads
 
 The package metadata, `REPO_SETTINGS.md`, the README, proof receipts, `tools.json`,
-the sources named in `pages.mjs`, the templates and local assets.
+the sources named in `pages.mjs`, `.repo-build/set.json`, the templates and local assets.
+The set supplies the Projects popup and related repository links at build time.
 It reads only the commit variable named above; it writes no environment values other than that validated commit.
 An optional `website/release.json` with a version and `"verified": true` supplies the displayed release.
 An absent file or `"verified": false` leaves the package version labelled "not released yet".

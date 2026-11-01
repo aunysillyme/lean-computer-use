@@ -86,6 +86,14 @@ for (const field of ['short sha', 'commit URL']) {
   });
 }
 
+test('site typography uses the selected mono family', () => {
+  const css = read(root, 'website/assets/site.css');
+  const resources = read(root, 'website/resources.mjs');
+  assert.match(resources, /https:\/\/fonts\.googleapis\.com\/css2\?family=JetBrains\+Mono:wght@400;500;600&display=swap/);
+  assert.doesNotMatch(css + resources, new RegExp(['Cormor' + 'ant', 'Geor' + 'gia', '--' + 'serif'].join('|')));
+  assert.match(css, /\.hero h1 em\{display:block;font-size:\.6em;line-height:1\.3;letter-spacing:-\.01em;margin-top:\.5em;font-weight:400;font-style:normal;color:var\(--green\)\}/);
+});
+
 test('website test sources contain no revision lookup tokens', () => {
   const forbidden = new RegExp(['rev' + '-parse', 'HE' + 'AD'].join('|'));
   const tests = readdirSync(join(root, 'test')).filter(file => /^website-.*\.test\.mjs$/.test(file));
@@ -210,10 +218,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 15);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 18);
-  assert.equal(expectedFiles().length, 24);
-  assert.equal(expectedFiles(true).length, 36);
+  assert.equal(expectedFiles().length, pages.length + 17);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 20);
+  assert.equal(expectedFiles().length, 26);
+  assert.equal(expectedFiles(true).length, 38);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 
@@ -296,7 +304,7 @@ test('RED every allowed JSON-LD type rejects an invented property', t => {
 });
 
 red('font host cannot supply a script', dir => append(dir, doc, '<script src="https://fonts.googleapis.com/test.js"></script>'), /external resource: script/);
-red('font stylesheet must match the selected families', dir => edit(dir, doc, html => html.replace('family=Cormorant', 'family=Other')), /external resource: link/);
+red('font stylesheet must match the selected families', dir => edit(dir, doc, html => html.replace('family=JetBrains+Mono', 'family=Other')), /external resource: link/);
 red('font preconnect cannot point at another host', dir => append(dir, doc, '<link rel="preconnect" href="https://example.org">'), /external resource: link/);
 red('remote trailer poster is refused', dir => append(dir, doc, '<video poster="https://example.org/poster.jpg"></video>'), /external resource: video/);
 red('media outside the assets directory is refused', dir => append(dir, doc, '<video src="/index.html"></video>'), /media must use local/);
