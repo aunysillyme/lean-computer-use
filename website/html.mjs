@@ -1,82 +1,95 @@
-// Character scanners, not regex replaces: every '<' is either consumed as part of a tag or
-// dropped, so the output can never hold the start of an element (CodeQL
-// js/incomplete-multi-character-sanitization).
+// Every '<' is consumed as part of a tag or dropped, so the output cannot hold
+// an element start (CodeQL js/incomplete-multi-character-sanitization).
 const BLOCKS = new Set(['script', 'style', 'iframe', 'object', 'svg']);
 const INLINE = new Set(['a', 'code', 'strong', 'em', 'span', 'time']);
-const isNameChar = ch => ch !== undefined && /[a-z0-9]/i.test(ch);
 
 function tagName(tag) {
-  let i = tag[0] === '/' ? 1 : 0;
-  if (!/[a-z]/i.test(tag[i] ?? '')) return '';
-  let name = '';
-  while (isNameChar(tag[i])) name += tag[i++];
-  return name.toLowerCase();
+  return tag.match(/^\/?([a-z][a-z0-9]*)/i)?.[1].toLowerCase() || '';
 }
 
-function blockEnd(html, lower, name, from) {
-  let at = from;
-  for (;;) {
-    at = lower.indexOf(`</${name}`, at);
-    if (at === -1) return -1;
-    if (!isNameChar(lower[at + 2 + name.length])) break;
-    at += 2;
+// Keep closing positions even inside malformed tags, as the block filter did.
+// Both the match cursor and the next '>' cursor only move forward.
+function blockEnds(html) {
+  const ends = new Map();
+  let close = -1;
+  for (const match of html.matchAll(/<\/(script|style|iframe|object|svg)(?![a-z0-9])/gi)) {
+    if (close < match.index) {
+      close = html.indexOf('>', match.index);
+      if (close === -1) close = html.length;
+    }
+    const name = match[1].toLowerCase();
+    if (!ends.has(name)) ends.set(name, []);
+    ends.get(name).push({ at: match.index, end: Math.min(close + 1, html.length) });
   }
-  const close = html.indexOf('>', at);
-  return close === -1 ? html.length : close + 1;
+  for (const positions of ends.values()) positions.reverse();
+  return ends;
+}
+
+function blockEnd(ends, name, from) {
+  const positions = ends.get(name);
+  while (positions?.length && positions.at(-1).at < from) positions.pop();
+  return positions?.at(-1)?.end ?? -1;
+}
+
+// Stop at either delimiter so an unterminated tag never rescans the suffix.
+function tagEnd(html, from) {
+  let i = from;
+  while (i < html.length && html[i] !== '<' && html[i] !== '>') i++;
+  return i;
 }
 
 export function stripTags(html, separator = '') {
-  let out = '';
+  const out = [];
   let i = 0;
   while (i < html.length) {
-    const ch = html[i];
-    if (ch !== '<') { out += ch; i++; continue; }
-    const close = html.indexOf('>', i + 1);
-    const next = html.indexOf('<', i + 1);
-    if (close === -1 || (next !== -1 && next < close)) { i++; continue; }
-    out += separator;
-    i = close + 1;
+    const open = html.indexOf('<', i);
+    if (open === -1) { out.push(html.slice(i)); break; }
+    out.push(html.slice(i, open));
+    const end = tagEnd(html, open + 1);
+    if (html[end] === '>') out.push(separator);
+    else out.push(html.slice(open + 1, end));
+    i = html[end] === '>' ? end + 1 : end;
   }
-  return out;
+  return out.join('');
 }
 
 export function stripHtml(html, separator = '', joinInline = false) {
-  const lower = html.toLowerCase();
-  let out = '';
+  const ends = blockEnds(html);
+  const out = [];
   let strayAt = -1;
   let i = 0;
   while (i < html.length) {
-    const ch = html[i];
-    if (ch !== '<') { out += ch; i++; continue; }
-    if (html.startsWith('<!--', i)) {
-      const end = html.indexOf('-->', i + 4);
+    const open = html.indexOf('<', i);
+    if (open === -1) { out.push(html.slice(i)); break; }
+    out.push(html.slice(i, open));
+    if (html.startsWith('<!--', open)) {
+      const end = html.indexOf('-->', open + 4);
       i = end === -1 ? html.length : end + 3;
       strayAt = -1;
       continue;
     }
-    const close = html.indexOf('>', i + 1);
-    const next = html.indexOf('<', i + 1);
-    if (close === -1 || (next !== -1 && next < close)) {
-      // A '<' that never closes before the next one: drop it, and remember where it was so a
-      // script-like block hidden behind it (<scr<script>...) is removed along with its prefix.
+    const close = tagEnd(html, open + 1);
+    if (html[close] !== '>') {
+      // Remember the output boundary before a malformed prefix such as <scr<script>.
       if (strayAt === -1) strayAt = out.length;
-      i++;
+      out.push(html.slice(open + 1, close));
+      i = close;
       continue;
     }
-    const tag = html.slice(i + 1, close);
+    const tag = html.slice(open + 1, close);
     const name = tagName(tag);
     if (name && tag[0] !== '/' && BLOCKS.has(name)) {
-      const end = blockEnd(html, lower, name, close + 1);
+      const end = blockEnd(ends, name, close + 1);
       if (end !== -1) {
-        if (strayAt !== -1) out = out.slice(0, strayAt);
+        if (strayAt !== -1) out.length = strayAt;
         strayAt = -1;
         i = end;
         continue;
       }
     }
     strayAt = -1;
-    if (name) out += joinInline && INLINE.has(name) ? '' : separator;
+    if (name) out.push(joinInline && INLINE.has(name) ? '' : separator);
     i = close + 1;
   }
-  return out;
+  return out.join('');
 }
