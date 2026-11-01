@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderMarkdown } from '../website/build.mjs';
+import { stripHtml } from '../website/html.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
@@ -14,7 +15,7 @@ const routes = ['/', '/docs/overview/', '/docs/how-it-works/', '/docs/guides/', 
 // Placeholder commit used to generate the saved mock, independent of repository history.
 const testCommit = '0000000000000000000000000000000000000000';
 const read = (dir, file) => readFileSync(join(dir, file), 'utf8');
-const text = html => html.replace(/<(script|style)\b[^]*?<\/\1>/gi, '').replace(/<[^>]*>/g, ' ')
+const text = html => stripHtml(html, ' ')
   .replace(/&(?:amp|lt|gt|quot|#39);/g, value => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[value])
   .replace(/\s+/g, ' ').trim();
 const pageFile = route => route === '/' ? 'index.html' : route.slice(1) + 'index.html';
@@ -274,6 +275,21 @@ test('RED source sanitization removes executable script and inline event handler
   };
   assert.throws(() => check(html + payload));
   check(html);
+});
+
+test('source sanitization strips nested tags and active closing variants', () => {
+  for (const payload of ['<scr<script>ipt>alert(1)</script>', '<script>alert(1)</SCRIPT >', '<script>alert(1)</script\t\nbar>']) {
+    assert.equal(stripHtml(payload), '', payload);
+    const html = renderMarkdown(`Before ${payload} after`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i, payload);
+    assert.ok(text(html).includes('Before'));
+    assert.ok(text(html).includes('after'));
+  }
+  for (const closing of ['</SCRIPT >', '</script\t\nbar>']) {
+    const html = renderMarkdown(`<script>\nalert(1)\n${closing}\n\nAfter`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i);
+    assert.match(html, /After/);
+  }
 });
 
 test('RED hero has approved headline and visible keywords, with the prohibited headline absent', t => {

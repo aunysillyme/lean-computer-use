@@ -33,7 +33,7 @@ function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'website-facts-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const files = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'proof/results.json',
-    'website/facts.mjs', 'website/tools.json', 'website/mock/index.html', ...facts.tools.flatMap(tool => tool.source)];
+    'website/facts.mjs', 'website/html.mjs', 'website/tools.json', 'website/mock/index.html', ...facts.tools.flatMap(tool => tool.source)];
   for (const file of new Set(files)) write(dir, file, read(file));
   return dir;
 }
@@ -58,6 +58,14 @@ test('facts load package, proof, six FAQs, setup rows and process from their sou
     assert.ok(readme.includes(`### ${row.question}\n\n${row.answerMarkdown}`));
     assert.equal(text(row.answerMarkdown.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/`/g, '').replace(/</g, '&lt;').replace(/>/g, '&gt;')), row.answer);
   }
+});
+
+test('visible text removes nested active HTML and closing tag variants', () => {
+  for (const payload of ['<scr<script>ipt>alert(1)</script>', '<SCRIPT>alert(1)</SCRIPT >', '<script>alert(1)</script\t\nbar>']) {
+    assert.equal(visibleText(payload), '', payload);
+    assert.equal(visibleText(`Before ${payload} after`), 'Before after', payload);
+  }
+  assert.equal(visibleText('<p>Keep <strong>inline</strong> text</p>'), 'Keep inline text');
 });
 
 test('RED description parity rejects a one-character package defect, then accepts the original', t => {

@@ -19,11 +19,26 @@ test('measure splits main from subagent', () => {
 });
 
 test('measure supports date and tool filters and validates them', () => {
-  const result = measureTranscripts({ projectsDir: fixture, since: '2026-10-03', toolPattern: '^custom__' });
+  const result = measureTranscripts({ projectsDir: fixture, since: '2026-10-03', toolPattern: 'custom__' });
   assert.equal(result.main.steps, 1);
   assert.equal(result.subagent.steps, 1);
   assert.throws(() => measureTranscripts({ projectsDir: fixture, since: '2026-02-30' }));
-  assert.throws(() => measureTranscripts({ projectsDir: fixture, toolPattern: '[' }));
+});
+
+test('measure tool filters match regex metacharacters literally and never throw', t => {
+  const root = temp(t);
+  for (const [toolPattern, nearMiss] of [['a.b', 'axb'], ['(x', 'x'], ['[*]', '*'], ['[', 'plain']]) {
+    const names = [toolPattern, `prefix_${toolPattern}_suffix`, nearMiss];
+    write(root, 'literal.jsonl', names.map((name, index) => JSON.stringify({
+      type: 'assistant', message: { id: String(index), content: [{ type: 'tool_use', name }], usage: { input_tokens: 2 ** index } },
+    })).join('\n'));
+    const result = measureTranscripts({ projectsDir: root, toolPattern });
+    assert.equal(result.main.steps, 2, toolPattern);
+    assert.equal(result.main.total, 3, toolPattern);
+    const lines = [];
+    assert.equal(measureCommand(['--projects-dir', root, '--tool-pattern', toolPattern, '--json'], { write: value => lines.push(value) }), 0);
+    assert.deepEqual(JSON.parse(lines[0]), result);
+  }
 });
 
 test('measure prints the same result as JSON and a short human table', () => {

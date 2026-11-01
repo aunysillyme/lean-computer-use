@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 
-const defaultPattern = '^mcp__(computer-use|cua-driver)__';
+const defaultPattern = /^mcp__(computer-use|cua-driver)__/;
 const usageKeys = ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'];
 const number = value => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 
@@ -104,7 +104,6 @@ export function groupStats(messages) {
 /** @param {{projectsDir?: string, since?: string, toolPattern?: string}} options */
 export function measureTranscripts(options = {}) {
   const directory = resolve(options.projectsDir || join(homedir(), '.claude/projects'));
-  const pattern = new RegExp(options.toolPattern || defaultPattern);
   let since = null;
   if (options.since) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(options.since) || !Number.isFinite(Date.parse(options.since)) || new Date(options.since).toISOString().slice(0, 10) !== options.since) throw new Error('--since needs a date in YYYY-MM-DD form');
@@ -129,9 +128,9 @@ export function measureTranscripts(options = {}) {
         if (!Number.isFinite(timestamp) || timestamp < since) continue;
       }
       const native = message.content.some(block => {
-        if (block?.type !== 'tool_use') return false;
-        pattern.lastIndex = 0;
-        return typeof block.name === 'string' && (pattern.test(block.name) || block.name === 'Bash' && isDeskCommand(block.input?.command));
+        if (block?.type !== 'tool_use' || typeof block.name !== 'string') return false;
+        const matches = options.toolPattern ? block.name.includes(options.toolPattern) : defaultPattern.test(block.name);
+        return matches || block.name === 'Bash' && isDeskCommand(block.input?.command);
       });
       const usage = message.usage || {};
       const total = usageKeys.reduce((sum, key) => sum + number(usage[key]), 0);

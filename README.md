@@ -148,7 +148,7 @@ npx lean-computer-use measure --projects-dir <transcripts-dir> --since YYYY-MM-D
 
 The command scans local Claude Code transcript files, counts each native assistant message id once, and keeps its largest input total.
 It separates main-session and subagent steps and reports median, p90 (the value 90 percent of steps stay under), mean, total and re-read share.
-Use `--tool-pattern <regex>` for a different native MCP tool prefix.
+Use `--tool-pattern <text>` to match literal text in a native MCP tool name.
 
 Fixture data from the bundled synthetic transcripts, showing the output shape:
 
