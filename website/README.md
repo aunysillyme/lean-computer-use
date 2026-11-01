@@ -11,7 +11,7 @@ The site uses Vercel Speed Insights for real-user performance measurements throu
 the same-origin `/_vercel/speed-insights/` endpoint. The shared page head loads the
 local queue initializer before Vercel's deferred script; the CSP permits same-origin
 connections. Enable Speed Insights in the Vercel project before deployment.
-The shared head declares `<meta name="site-type" content="app">` for Is Agentic.
+The shared head declares `<meta name="is-agentic-site-type" content="app">` for Is Agentic.
 
 ## Trigger
 
