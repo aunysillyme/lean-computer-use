@@ -301,7 +301,7 @@ function head(page, facts, live, notFound = false) {
   return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="site-type" content="app">
+<meta name="is-agentic-site-type" content="app">
 <meta http-equiv="Content-Security-Policy" content="${escape(csp)}">
 <title>${escape(page.title)}</title>
 <meta name="description" content="${escape(page.description)}">

@@ -382,13 +382,13 @@ test('Projects header and sibling links follow the pinned set on every page', t 
   }
 });
 
-test('Speed Insights loads once after its queue and site-type is app on every page in both modes', t => {
+test('Speed Insights loads once after its queue and is-agentic-site-type is app on every page in both modes', t => {
   const dir = fixture(t);
   for (const live of [false, true]) {
     const output = built(dir, { live });
     for (const file of files(output).filter(file => file.endsWith('.html'))) {
       const html = read(output, file);
-      assert.equal(html.split('<meta name="site-type" content="app">').length - 1, 1, file);
+      assert.equal(html.split('<meta name="is-agentic-site-type" content="app">').length - 1, 1, file);
       assert.equal(html.split('<script src="/_vercel/speed-insights/script.js" defer></script>').length - 1, 1, file);
       assert.match(html, /<script src="\/assets\/speed-insights.js" defer><\/script>\n<script src="\/_vercel\/speed-insights\/script.js" defer><\/script>/);
       assert.match(html, /connect-src &#39;self&#39;/);
