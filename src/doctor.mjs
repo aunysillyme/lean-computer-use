@@ -13,16 +13,19 @@ function leftovers(env, source, run) {
   try {
     if (!existsSync(directory) || !readdirSync(directory).some(name => /^[0-9a-f]{16}\.json$/.test(name))) return [id, 'PASS', 'no leased processes are running', fix];
     const reaper = join(source, 'desk/desk-reap');
-    if (!existsSync(reaper)) return [id, 'PASS', 'no leased processes are running', fix];
+    if (!existsSync(reaper)) return [id, 'UNKNOWN', 'lease files exist but the packaged reaper is missing', 'Reinstall the package, then review the lease files.'];
     const result = run('python3', [reaper, 'cleanup', '--all', '--json']);
+    if (result.error) return [id, 'UNKNOWN', 'lease files exist but the process probe failed; needs review', 'Review the lease files and rerun doctor.'];
     let value;
-    try { value = JSON.parse(result.stdout); } catch { return [id, 'FAIL', 'leased processes exist but the process list could not be read', fix]; }
+    try { value = JSON.parse(result.stdout); } catch { return [id, 'UNKNOWN', 'lease files exist but the process list could not be read; needs review', fix]; }
     const live = value.candidates || [], refused = value.refused || [];
+    if (value.invalid) return [id, 'UNKNOWN', `${value.invalid} invalid lease file(s); process status is unknown and needs review`, 'Review the invalid lease files before cleanup.'];
+    if (result.status !== 0) return [id, 'UNKNOWN', 'lease files exist but the process probe failed; needs review', 'Review the lease files and rerun doctor.'];
     if (!live.length && refused.length) return [id, 'FAIL', `${refused.length} leased process(es) are running but cannot be proven safe to end: ${refused.map(r => `pid ${r.pid} (${r.reason})`).join('; ')}`, fix];
     if (!live.length) return [id, 'PASS', 'no leased processes are running', fix];
     const age = seconds => seconds < 90 ? `${seconds}s` : seconds < 5400 ? `${Math.round(seconds / 60)}m` : `${Math.round(seconds / 3600)}h`;
     return [id, 'FAIL', `leftover leased processes: ${live.map(c => `${c.name} pid ${c.pid} (${c.processes} processes, age ${age(c.age_seconds)})`).join('; ')}`, fix];
-  } catch { return [id, 'FAIL', 'the lease list could not be read, so leftover processes could not be checked', fix]; }
+  } catch { return [id, 'UNKNOWN', 'the lease list could not be read, so leftover processes need review', fix]; }
 }
 
 /** Desktop control left held: the stop gate's own state module decides what counts. */
@@ -92,7 +95,10 @@ export function doctor(options = {}, adapters = {}) {
         return !existsSync(path) || digest(readFileSync(path)) !== digest(file.content);
       } catch { return true; }
     });
-    add('installed-files', missing.length ? 'FAIL' : 'PASS', missing.length ? `${missing.length} installed files are missing or changed` : 'skill, agent and desk files match the package', 'Run lean-computer-use install --yes with the same --dir and --share.');
+    const manifestPath = safePath(roots.share, 'install-manifest.json');
+    const pending = existsSync(manifestPath) && JSON.parse(readFileSync(manifestPath, 'utf8')).state === 'pending';
+    if (pending) add('installed-files', 'UNKNOWN', 'installation is pending and needs review', 'Run uninstall with the same --dir and --share, then reinstall.');
+    else add('installed-files', missing.length ? 'FAIL' : 'PASS', missing.length ? `${missing.length} installed files are missing or changed` : 'skill, agent and desk files match the package', 'Run lean-computer-use install --yes with the same --dir and --share.');
   } catch (error) {
     add('installed-files', 'FAIL', `Package files cannot be checked: ${error.message}`, 'Reinstall the npm package, then run lean-computer-use install --yes.');
   }
@@ -109,17 +115,25 @@ export function doctor(options = {}, adapters = {}) {
   const [leftId, leftStatus, leftMessage, leftFix] = leftovers(env, source, run);
   add(leftId, leftStatus, leftMessage, leftFix);
   add(...openSurfaces(env, source, run));
-  return { checks, exitCode: checks.some(check => check.status === 'FAIL') ? 1 : 0 };
+  return { checks, exitCode: checks.some(check => ['FAIL', 'UNKNOWN'].includes(check.status)) ? 1 : 0 };
 }
 
 /** @param {string[]} args @param {Record<string, any>} adapters */
 export function doctorCommand(args = [], adapters = {}) {
+  /** @type {{json: boolean, dir?: string, share?: string}} */
   const options = { json: false };
-  for (const arg of args) {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
     if (arg === '--json') options.json = true;
+    else if (arg === '--dir' || arg === '--share') {
+      const value = args[++index];
+      if (!value || value.startsWith('--')) throw Object.assign(new Error(`Missing value for ${arg}`), { exitCode: 2 });
+      if (arg === '--dir') options.dir = value;
+      else options.share = value;
+    }
     else throw Object.assign(new Error(`Unknown option: ${arg}`), { exitCode: 2 });
   }
-  const result = doctor(adapters.options || {}, adapters);
+  const result = doctor({ ...adapters.options, ...options }, adapters);
   const write = adapters.write || console.log;
   if (options.json) write(JSON.stringify(result, null, 2));
   else for (const check of result.checks) write(`${check.status} ${check.id}: ${check.message}; fix: ${check.fix}`);
