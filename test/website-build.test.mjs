@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderMarkdown } from '../website/build.mjs';
 import { stripHtml } from '../website/html.mjs';
+import { runInNewContext } from 'node:vm';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
@@ -354,6 +355,29 @@ test('RED build imports keep the zero dependency boundary', () => {
   check(code);
 });
 
+test('Speed Insights loads once after its queue and site-type is app on every page in both modes', t => {
+  const dir = fixture(t);
+  for (const live of [false, true]) {
+    const output = built(dir, { live });
+    for (const file of files(output).filter(file => file.endsWith('.html'))) {
+      const html = read(output, file);
+      assert.equal(html.split('<meta name="site-type" content="app">').length - 1, 1, file);
+      assert.equal(html.split('<script src="/_vercel/speed-insights/script.js" defer></script>').length - 1, 1, file);
+      assert.match(html, /<script src="\/assets\/speed-insights.js" defer><\/script>\n<script src="\/_vercel\/speed-insights\/script.js" defer><\/script>/);
+      assert.match(html, /connect-src &#39;self&#39;/);
+      assert.doesNotMatch(html, /unsafe-inline/);
+    }
+    const window = {};
+    const script = read(output, 'assets/speed-insights.js');
+    runInNewContext(script, { window });
+    window.si('beforeSend', 'queued');
+    assert.deepEqual(Array.from(window.siq[0]), ['beforeSend', 'queued']);
+    const handler = window.si;
+    runInNewContext(script, { window });
+    assert.equal(window.si, handler);
+  }
+});
+
 test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets are complete', t => {
   const dir = fixture(t);
   const output = built(dir);
@@ -374,7 +398,7 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
       assert.equal(blocks[0].itemListElement.length, 3);
       for (const item of blocks[0].itemListElement) assert.ok(visible.includes(item.name), item.name);
     }
-    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/'), match[1]);
+    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/') || match[0].startsWith('<script') && match[1] === '/_vercel/speed-insights/script.js', match[1]);
     assert.match(html, /href="\/assets\/site.css"/);
     assert.match(html, /src="\/assets\/site.js"/);
     assert.doesNotMatch(html, /<(?:iframe|audio)\b|googletagmanager|google-analytics/i);
