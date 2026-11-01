@@ -4,7 +4,7 @@ export function stripTags(html, separator = '') {
     previous = html;
     html = html.replace(/<[^>]*>/g, separator);
   } while (html !== previous);
-  return html;
+  return html.replace(/</g, '');
 }
 
 export function stripHtml(html, separator = '', joinInline = false) {
@@ -16,5 +16,5 @@ export function stripHtml(html, separator = '', joinInline = false) {
     if (joinInline) html = html.replace(/<\/?(?:a|code|strong|em|span|time)\b[^>]*>/gi, '');
     html = html.replace(/<\/?[a-z][^>]*>/gi, separator);
   } while (html !== previous);
-  return html;
+  return html.replace(/</g, '');
 }

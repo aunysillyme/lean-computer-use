@@ -37,7 +37,7 @@ jobs:
       - run: node scripts/self-check.mjs
       - name: Test desk tools and native hooks
         run: |
-          python3 -m pip install --require-hashes --no-deps -r .github/requirements-ci.txt
+          python3 -m pip install --require-hashes --only-binary :all: --no-deps -r .github/requirements-ci.txt
           python3 -m pytest -q desk/tests hooks/tests
       - name: Check JavaScript types
         run: |
