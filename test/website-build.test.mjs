@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderMarkdown } from '../website/build.mjs';
+import { stripHtml } from '../website/html.mjs';
+import { runInNewContext } from 'node:vm';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
@@ -14,7 +16,7 @@ const routes = ['/', '/docs/overview/', '/docs/how-it-works/', '/docs/guides/', 
 // Placeholder commit used to generate the saved mock, independent of repository history.
 const testCommit = '0000000000000000000000000000000000000000';
 const read = (dir, file) => readFileSync(join(dir, file), 'utf8');
-const text = html => html.replace(/<(script|style)\b[^]*?<\/\1>/gi, '').replace(/<[^>]*>/g, ' ')
+const text = html => stripHtml(html, ' ')
   .replace(/&(?:amp|lt|gt|quot|#39);/g, value => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[value])
   .replace(/\s+/g, ' ').trim();
 const pageFile = route => route === '/' ? 'index.html' : route.slice(1) + 'index.html';
@@ -277,12 +279,27 @@ test('RED source sanitization removes executable script and inline event handler
   write(dir, 'docs/METHOD.md', read(dir, 'docs/METHOD.md') + '\n\n' + payload + '\n');
   const html = read(built(dir), 'docs/how-it-works/index.html');
   const check = value => {
-    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script>/gi)) assert.ok(!script[1].includes('sourcePayload'));
+    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script\b[^>]*>/gi)) assert.ok(!script[1].includes('sourcePayload'));
     assert.doesNotMatch(value, /<[^>]+\son[a-z]+\s*=/i);
     assert.ok(text(value).includes('Safe source text'));
   };
   assert.throws(() => check(html + payload));
   check(html);
+});
+
+test('source sanitization strips nested tags and active closing variants', () => {
+  for (const payload of ['<scr<script>ipt>alert(1)</script>', '<script>alert(1)</SCRIPT >', '<script>alert(1)</script\t\nbar>']) {
+    assert.equal(stripHtml(payload), '', payload);
+    const html = renderMarkdown(`Before ${payload} after`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i, payload);
+    assert.ok(text(html).includes('Before'));
+    assert.ok(text(html).includes('after'));
+  }
+  for (const closing of ['</SCRIPT >', '</script\t\nbar>']) {
+    const html = renderMarkdown(`<script>\nalert(1)\n${closing}\n\nAfter`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i);
+    assert.match(html, /After/);
+  }
 });
 
 test('RED hero has approved headline and visible keywords, with the prohibited headline absent', t => {
@@ -365,6 +382,29 @@ test('Projects header and sibling links follow the pinned set on every page', t 
   }
 });
 
+test('Speed Insights loads once after its queue and site-type is app on every page in both modes', t => {
+  const dir = fixture(t);
+  for (const live of [false, true]) {
+    const output = built(dir, { live });
+    for (const file of files(output).filter(file => file.endsWith('.html'))) {
+      const html = read(output, file);
+      assert.equal(html.split('<meta name="site-type" content="app">').length - 1, 1, file);
+      assert.equal(html.split('<script src="/_vercel/speed-insights/script.js" defer></script>').length - 1, 1, file);
+      assert.match(html, /<script src="\/assets\/speed-insights.js" defer><\/script>\n<script src="\/_vercel\/speed-insights\/script.js" defer><\/script>/);
+      assert.match(html, /connect-src &#39;self&#39;/);
+      assert.doesNotMatch(html, /unsafe-inline/);
+    }
+    const window = {};
+    const script = read(output, 'assets/speed-insights.js');
+    runInNewContext(script, { window });
+    window.si('beforeSend', 'queued');
+    assert.deepEqual(Array.from(window.siq[0]), ['beforeSend', 'queued']);
+    const handler = window.si;
+    runInNewContext(script, { window });
+    assert.equal(window.si, handler);
+  }
+});
+
 test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets are complete', t => {
   const dir = fixture(t);
   const output = built(dir);
@@ -385,7 +425,7 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
       assert.equal(blocks[0].itemListElement.length, 3);
       for (const item of blocks[0].itemListElement) assert.ok(visible.includes(item.name), item.name);
     }
-    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/'), match[1]);
+    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/') || match[0].startsWith('<script') && match[1] === '/_vercel/speed-insights/script.js', match[1]);
     assert.match(html, /href="\/assets\/site.css"/);
     assert.match(html, /src="\/assets\/site.js"/);
     assert.doesNotMatch(html, /<(?:iframe|audio)\b|googletagmanager|google-analytics/i);

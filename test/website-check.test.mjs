@@ -142,6 +142,15 @@ red('100 x 100 PNG', dir => {
 }, /expected a 1200 x 630 PNG/, { live: true });
 red('sitemap with ten URLs', dir => edit(dir, 'sitemap.xml', xml => xml.replace('</urlset>', '<url><loc>https://lean-computer-use.aunysillyme.dev/extra/</loc></url></urlset>')), /sitemap must list exactly/, { live: true });
 red('external script tag', dir => append(dir, doc, '<script src="https://example.org/test.js"></script>'), /external resource: script/);
+red('missing site-type meta tag', dir => edit(dir, doc, html => html.replace('<meta name="site-type" content="app">', '')), /expected one site-type meta tag with content app/);
+red('wrong site-type', dir => edit(dir, doc, html => html.replace('name="site-type" content="app"', 'name="site-type" content="docs"')), /expected one site-type meta tag with content app/, { live: true });
+red('duplicate site-type meta tag', dir => edit(dir, doc, html => html.replace('</head>', '<meta name="site-type" content="app"></head>')), /expected one site-type meta tag with content app/);
+red('unknown Vercel script path', dir => append(dir, doc, '<script src="/_vercel/other.js"></script>'), /unresolved file/);
+red('Speed Insights path on an image', dir => append(dir, doc, '<img src="/_vercel/speed-insights/script.js" alt="Test">'), /unresolved file/);
+red('missing Speed Insights script', dir => edit(dir, doc, html => html.replace('<script src="/_vercel/speed-insights/script.js" defer></script>', '')), /expected one Speed Insights queue and script/);
+red('duplicate Speed Insights script', dir => append(dir, doc, '<script src="/_vercel/speed-insights/script.js" defer></script>'), /expected one Speed Insights queue and script/);
+red('async Speed Insights script', dir => edit(dir, doc, html => html.replace('src="/_vercel/speed-insights/script.js" defer', 'src="/_vercel/speed-insights/script.js" async')), /Speed Insights must defer and load after its queue/);
+red('Speed Insights script before queue', dir => edit(dir, doc, html => html.replace('<script src="/assets/speed-insights.js" defer></script>\n<script src="/_vercel/speed-insights/script.js" defer></script>', '<script src="/_vercel/speed-insights/script.js" defer></script>\n<script src="/assets/speed-insights.js" defer></script>')), /Speed Insights must defer and load after its queue/);
 red('gtag snippet', dir => append(dir, doc, '<script>gtag("config", "test");</script>'), /analytics or tag-manager/);
 red('external image', dir => append(dir, doc, '<img src="https://example.org/test.png" alt="Test">'), /external resource: img/);
 red('external stylesheet', dir => append(dir, doc, '<link rel="stylesheet" href="https://example.org/test.css">'), /external resource: link/);
@@ -201,10 +210,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 16);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 19);
-  assert.equal(expectedFiles().length, 25);
-  assert.equal(expectedFiles(true).length, 37);
+  assert.equal(expectedFiles().length, pages.length + 17);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 20);
+  assert.equal(expectedFiles().length, 26);
+  assert.equal(expectedFiles(true).length, 38);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 

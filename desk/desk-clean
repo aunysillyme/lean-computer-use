@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _resolve import (CACHE, DRIVER_MARKER, OWN_FILES, STATE, DeskError,
                       driver_command, driver_status, state_is_ours)
+from _lease import driver_sessions, owned_driver
 
 
 def own_files():
@@ -113,14 +114,21 @@ def clean_state(bundle_id, files, cache):
 
 def stop_driver():
     try:
-        sessions = driver_command("sessions")
         running = driver_status()
         if running is False:
             return "already-stopped"
-        if running is None or sessions.returncode:
+        if running is None:
             return "stop-failed"
-        if sessions.stdout.strip().rstrip(".") != "No live sessions":
-            return "left-running-live-sessions" if sessions.stdout.strip() else "stop-failed"
+        if not owned_driver():
+            return "left-running-unleased"
+        state, reason = driver_sessions()
+        if state == "unknown":
+            print("desk-clean: UNKNOWN: " + reason, file=sys.stderr)
+            return "stop-failed"
+        if state == "busy":
+            return "left-running-live-sessions"
+        if not owned_driver():
+            return "left-running-unleased"
         # Only the driver's graceful stop command may stop the shared daemon.
         driver_command("stop")
         deadline = time.monotonic() + 5
@@ -131,7 +139,7 @@ def stop_driver():
             if driver_status(min(2, remaining)) is False:
                 return "stopped"
             time.sleep(min(0.1, max(0, deadline - time.monotonic())))
-    except DeskError:
+    except (DeskError, OSError, subprocess.TimeoutExpired):
         return "stop-failed"
 
 

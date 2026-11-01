@@ -80,6 +80,8 @@ def run_cleanup(args):
                   f"session={c['session'][:8] if c['session'] else '-'} run={c['run'] or '-'}")
     for r in result["refused"]:
         print(f"refused pid={r['pid']} lease={r['id']}: {r['reason']}", file=sys.stderr)
+    for probe in result["unknown"]:
+        print(f"UNKNOWN pid={probe['pid']}: {probe['reason']}; driver left running", file=sys.stderr)
     print(_lease.summary(result))
     return _lease.exit_code(result)
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { ROOT } from './support.mjs';
+import { stripTags } from '../website/html.mjs';
 
 const read = path => readFileSync(ROOT + '/' + path, 'utf8');
 const pkg = JSON.parse(read('package.json'));
@@ -17,7 +18,7 @@ function headings(text) {
     const match = fence ? null : line.match(/^#{1,6}\s+(.+?)(?:\s+#+)?\s*$/);
     if (!match) continue;
     const label = match[1];
-    const base = label.toLowerCase().replace(/<[^>]*>/g, '').replace(/[^\p{L}\p{N}_\s-]/gu, '').replace(/\s/g, '-');
+    const base = stripTags(label.toLowerCase()).replace(/[^\p{L}\p{N}_\s-]/gu, '').replace(/\s/g, '-');
     const count = seen.get(base) || 0;
     seen.set(base, count + 1);
     found.push({ label, slug: base + (count ? `-${count}` : ''), level: line.match(/^#+/)[0].length });
@@ -63,4 +64,8 @@ test('llms anchor matching handles punctuation duplicates and fenced examples', 
   assert.deepEqual(targets.map(heading => heading.slug), ['title', 'check-your-app', 'check-your-app-1']);
   assert.ok(targets.some(heading => heading.slug === 'check-your-app'));
   assert.ok(!targets.some(heading => heading.slug === 'missing'));
+});
+
+test('llms anchor matching strips tags until stable', () => {
+  assert.deepEqual(headings('## <<b>>Title<</b>>').map(heading => heading.slug), ['title']);
 });

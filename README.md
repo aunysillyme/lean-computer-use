@@ -148,7 +148,7 @@ npx lean-computer-use measure --projects-dir <transcripts-dir> --since YYYY-MM-D
 
 The command scans local Claude Code transcript files, counts each native assistant message id once, and keeps its largest input total.
 It separates main-session and subagent steps and reports median, p90 (the value 90 percent of steps stay under), mean, total and re-read share.
-Use `--tool-pattern <regex>` for a different native MCP tool prefix.
+Use `--tool-pattern <text>` to match literal text in a native MCP tool name.
 
 Fixture data from the bundled synthetic transcripts, showing the output shape:
 
@@ -166,14 +166,15 @@ The calculation is described in [the skill](skills/lean-computer-use/SKILL.md#me
 
 Package receipts include the command, measurement date and expiry in [proof/results.json](proof/results.json).
 They measure the package and synthetic fixture.
-Regenerate them with `npm run proof` after running the checks.
+Regenerate them from a source checkout with `npm run proof` after running the checks.
+The npm package includes the receipts and proof scripts; regeneration uses the source checkout's test suites and fixtures.
 
 <!-- proof:start -->
 | Measurement | Value | Measured | Expires |
 |---|---|---|---|
-| Runtime dependencies | 0 packages | 2026-10-29 | 2027-01-27 |
-| Fixture main median | 200 tokens | 2026-10-29 | 2027-01-27 |
-| Documented desk exits covered | 11 exit codes | 2026-10-29 | 2027-01-27 |
+| Runtime dependencies | 0 packages | 2026-11-01 | 2027-01-30 |
+| Fixture main median | 200 tokens | 2026-11-01 | 2027-01-30 |
+| Documented desk exits covered | 11 exit codes | 2026-11-01 | 2027-01-30 |
 <!-- proof:end -->
 
 ## Common questions

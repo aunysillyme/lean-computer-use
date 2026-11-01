@@ -7,7 +7,11 @@ It keeps editable words in `content.mjs`, page routes and source assignments in 
 and page shells in the two templates. The output uses local assets and the reference Google Fonts stylesheet.
 Only fonts.googleapis.com and fonts.gstatic.com may supply external font resources.
 The navigation script handles copying the install command, marking sections and the mobile accordion.
-It makes no network calls. The site has no analytics.
+The site uses Vercel Speed Insights for real-user performance measurements through
+the same-origin `/_vercel/speed-insights/` endpoint. The shared page head loads the
+local queue initializer before Vercel's deferred script; the CSP permits same-origin
+connections. Enable Speed Insights in the Vercel project before deployment.
+The shared head declares `<meta name="site-type" content="app">` for Is Agentic.
 
 ## Trigger
 

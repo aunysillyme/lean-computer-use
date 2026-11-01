@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { buildJsonLd, buildFaqJsonLd, validateTools, visibleText } from './facts.mjs';
 import { pages } from './pages.mjs';
 import { content } from './content.mjs';
+import { stripHtml, stripTags } from './html.mjs';
 
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const repository = 'https://github.com/aunysillyme/lean-computer-use';
@@ -99,12 +100,17 @@ function uniqueId(text, ids) {
 // Source HTML is data. Only tags constructed by this renderer reach the page.
 export function renderMarkdown(markdown, { source = 'README.md', ids = new Set(), routes = sourceRoutes() } = {}) {
   const references = new Map();
-  markdown = markdown.replace(/^---\n[^]*?\n---\n/, '').replace(/<!--[^]*?-->/g, '');
+  markdown = markdown.replace(/^---\n[^]*?\n---\n/, '');
+  let previous;
+  do {
+    previous = markdown;
+    markdown = markdown.replace(/<!--[^]*?-->/g, '');
+  } while (markdown !== previous);
   markdown = markdown.replace(/^\[([^\]]+)\]:\s*(\S+).*$/gm, (_, label, href) => { references.set(label.toLowerCase(), href); return ''; });
   function inline(value, tokens = []) {
     const save = html => { tokens.push(html); return `\u0000${tokens.length - 1}\u0000`; };
     value = value.replace(/`([^`]+)`/g, (_, code) => save(`<code>${escape(code)}</code>`));
-    value = value.replace(/<(script|style|iframe|object|svg)\b[^>]*>[^]*?<\/\1\s*>/gi, '').replace(/<\/?[a-z][^>]*>/gi, '');
+    value = stripHtml(value);
     value = value.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, href) => {
       const src = rewriteUrl(href, source, { image: true, routes });
       return save(src ? `<img src="${escape(src)}" alt="${escape(alt)}" loading="lazy">` : '');
@@ -139,9 +145,12 @@ export function renderMarkdown(markdown, { source = 'README.md', ids = new Set()
     }
     // Drop active raw HTML blocks before joining their lines into paragraphs.
     if (/^\s*<(script|style|iframe|object|svg)\b/i.test(line)) {
-      const tag = line.match(/<(\w+)/)[1];
+      const tag = line.match(/<(\w+)/)[1].toLowerCase();
       const raw = [];
-      do { raw.push(lines[index]); if (new RegExp(`</${tag}\\s*>`, 'i').test(lines[index++])) break; } while (index < lines.length);
+      do {
+        raw.push(lines[index++]);
+        if ([...raw.join('\n').matchAll(/<\/(script|style|iframe|object|svg)\b[^>]*>/gi)].some(match => match[1].toLowerCase() === tag)) break;
+      } while (index < lines.length);
       const safe = inline(raw.join('\n'));
       if (safe.trim()) blocks.push(`<p>${safe}</p>`);
       continue;
@@ -292,6 +301,7 @@ function head(page, facts, live, notFound = false) {
   return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="site-type" content="app">
 <meta http-equiv="Content-Security-Policy" content="${escape(csp)}">
 <title>${escape(page.title)}</title>
 <meta name="description" content="${escape(page.description)}">
@@ -318,6 +328,8 @@ ${!live || notFound ? '<meta name="robots" content="noindex">' : `<link rel="des
 <link rel="stylesheet" href="/assets/projects-popup.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/projects-popup.js" defer></script>
+<script src="/assets/speed-insights.js" defer></script>
+<script src="/_vercel/speed-insights/script.js" defer></script>
 <script type="module" src="/assets/navigation.js"></script>
 <script type="module" src="/assets/trailer.js"></script>
 ${blocks.map(block => `<script type="application/ld+json">${JSON.stringify(block, null, 2).replace(/</g, '\\u003c')}</script>`).join('\n')}`;
@@ -364,13 +376,17 @@ function validateRendered(documents, facts) {
 
 function markdownTwin(html, page) {
   let body = html.match(/<main\b[^>]*>([^]*?)<\/main>/)?.[1] || '';
-  body = body.replace(/<details class="mobile-nav">[^]*?<\/details>/g, '').replace(/<footer\b[^>]*>[^]*?<\/footer>/g, '').replace(/<nav\b[^>]*>[^]*?<\/nav>/g, '');
+  let previous;
+  do {
+    previous = body;
+    body = body.replace(/<details class="mobile-nav">[^]*?<\/details\b[^>]*>/gi, '').replace(/<footer\b[^>]*>[^]*?<\/footer\b[^>]*>/gi, '').replace(/<nav\b[^>]*>[^]*?<\/nav\b[^>]*>/gi, '');
+  } while (body !== previous);
   body = body.replace(/<h([1-6])\b[^>]*>([^]*?)<\/h\1>/g, (_, depth, text) => `\n\n${'#'.repeat(Number(depth))} ${visibleText(text)}\n\n`)
     .replace(/<a href="([^"]+)"[^>]*>([^]*?)<\/a>/g, (_, href, text) => `[${visibleText(text)}](${href.startsWith('/') ? origin : ''}${href.replace(/&amp;/g, '&')})`)
     .replace(/<pre><code>([^]*?)<\/code><\/pre>/g, (_, code) => `\n\n\`\`\`\n${decode(code)}\n\`\`\`\n\n`)
     .replace(/<code>([^]*?)<\/code>/g, (_, code) => `\`${decode(code)}\``)
-    .replace(/<\/(?:p|div|section|article|details|tr|li|figure|summary)>/g, '\n\n').replace(/<\/(?:th|td)>/g, ' | ')
-    .replace(/<[^>]+>/g, '');
+    .replace(/<\/(?:p|div|section|article|details|tr|li|figure|summary)>/g, '\n\n').replace(/<\/(?:th|td)>/g, ' | ');
+  body = stripTags(body);
   return `Canonical: ${origin}${page.route}\n\n${decode(body).replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
