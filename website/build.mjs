@@ -287,6 +287,7 @@ function head(page, facts, live, notFound = false) {
   return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="site-type" content="app">
 <meta http-equiv="Content-Security-Policy" content="${escape(csp)}">
 <title>${escape(page.title)}</title>
 <meta name="description" content="${escape(page.description)}">
@@ -311,6 +312,8 @@ ${!live || notFound ? '<meta name="robots" content="noindex">' : `<link rel="des
 <link href="${escape(fontStylesheet)}" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
+<script src="/assets/speed-insights.js" defer></script>
+<script src="/_vercel/speed-insights/script.js" defer></script>
 <script type="module" src="/assets/navigation.js"></script>
 <script type="module" src="/assets/trailer.js"></script>
 ${blocks.map(block => `<script type="application/ld+json">${JSON.stringify(block, null, 2).replace(/</g, '\\u003c')}</script>`).join('\n')}`;
