@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-01
+
+### Security
+
+- Match `measure --tool-pattern` as literal text, so a crafted pattern cannot cause slow regular expression matching.
+- Strip HTML in the website build with a character scanner, so no element start reaches generated text.
+- Pin every workflow action to a full commit SHA, install CI Python packages from hash-pinned wheels only, and add Dependabot for npm and GitHub Actions.
+
 ### Fixed
 
 - Fix the flaky spawn test: two matching reads could lease a shell before it exec'd into a browser. Observe the full startup window and require the final reads to agree before leasing.
@@ -15,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Persist a pending install manifest before payload writes so uninstall can recover interrupted installs and preserve user files and backups (#8).
 - Report invalid leases as UNKNOWN with their count and a review instruction (#9).
 - Include proof receipts and scripts in the package; identify regeneration as a source-checkout command (#11).
+- Release the cleanup features the README documents (#6).
 - Lease the exact new PID from a pre-launch driver snapshot instead of selecting by rounded `ps lstart` (#12). Launch through LaunchServices so macOS attributes permissions to CuaDriver.
 
 ## [0.1.2] - 2026-10-29
@@ -60,7 +69,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Installer, owned-file uninstall, environment doctor and transcript measurement.
 - Package proof, privacy checks and repository workflows.
 
-[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/aunysillyme/lean-computer-use/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aunysillyme/lean-computer-use/releases/tag/v0.1.0
