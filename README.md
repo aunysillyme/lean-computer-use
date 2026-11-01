@@ -166,7 +166,8 @@ The calculation is described in [the skill](skills/lean-computer-use/SKILL.md#me
 
 Package receipts include the command, measurement date and expiry in [proof/results.json](proof/results.json).
 They measure the package and synthetic fixture.
-Regenerate them with `npm run proof` after running the checks.
+Regenerate them from a source checkout with `npm run proof` after running the checks.
+The npm package includes the receipts and proof scripts; regeneration uses the source checkout's test suites and fixtures.
 
 <!-- proof:start -->
 | Measurement | Value | Measured | Expires |

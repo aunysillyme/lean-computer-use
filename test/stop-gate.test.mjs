@@ -71,6 +71,35 @@ test('reinstall with --no-stop-gate removes earlier gate registrations and keeps
   assert.match(readFileSync(join(dir, 'settings.json'), 'utf8'), gate);
 });
 
+for (const stopGate of [true, false]) {
+  test(`pending settings staging recovers with stop gate ${stopGate}`, async t => {
+    const { dir, share } = roots(t);
+    mkdirSync(dir);
+    const settings = join(dir, 'settings.json');
+    const original = '{"theme":"light"}\n';
+    writeFileSync(settings, original);
+    const args = ['--dir', dir, '--share', share, '--with-hooks', '--yes', ...(stopGate ? [] : ['--no-stop-gate'])];
+    let staged;
+    await assert.rejects(installCommand(args, { write() {}, beforeRename(kind, path) {
+      if (kind === 'payload' && path.startsWith(`${settings}.`)) {
+        staged = { path, bytes: readFileSync(path) };
+        throw new Error('Synthetic settings interruption');
+      }
+    } }), /Synthetic settings interruption/);
+    assert.ok(staged);
+    // A process kill leaves the staged bytes that writeChecked's finally normally removes.
+    writeFileSync(staged.path, staged.bytes);
+    const manifest = manifestOf(share);
+    assert.equal(manifest.state, 'pending');
+    assert.equal(manifest.stopGate, stopGate);
+    assert.equal(manifest.packageVersion, JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version);
+    await uninstallCommand(['--dir', dir, '--share', share], { write() {} });
+    assert.equal(existsSync(staged.path), false);
+    assert.equal(existsSync(join(share, 'install-manifest.json')), false);
+    assert.equal(readFileSync(settings, 'utf8'), original);
+  });
+}
+
 test('installed shims gate a dirty Stop once and keep from the CLI clears it', { skip }, async t => {
   const { dir, share, surfaces } = roots(t);
   await installCommand(['--dir', dir, '--share', share, '--with-hooks', '--yes'], { write() {} });

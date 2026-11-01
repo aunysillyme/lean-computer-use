@@ -15,6 +15,7 @@ CACHE = STATE / "apps.json"
 MARKER = ".desk-state"
 DRIVER_MARKER = "driver-started"
 DRIVER_START_WAIT = 10.0
+DRIVER_APP = Path("/Applications/CuaDriver.app")
 WINDOW_WAIT = 5.0
 # Only files desk itself writes are ever pruned: apps.json plus tempfile-named
 # "<tool>-<8 random [a-z0-9_]>.json" results. Anything else in the dir is not ours.
@@ -92,53 +93,57 @@ def driver_status(timeout=5):
     return None
 
 
-def record_driver_lease(launched):
-    """Record a lease for the daemon this call started, so cleanup can prove it owns it.
-
-    A daemon that cannot be tracked is stopped again: nothing may keep running without an owner on record."""
-    try:
-        from _lease import record_driver
-        record_driver(launched)
-    except Exception:
-        try:
-            driver_command("stop")
-        except DeskError:
-            pass
-        raise DeskError("cannot record a lease for the cua-driver daemon this call started; it was stopped") from None
-
-
 def ensure_driver():
     if driver_status() is True:
         return
     prepare_state()
-    launched = time.time()
-    try:
-        result = subprocess.run(["open", "-g", "-a", "/Applications/CuaDriver.app", "--args", "serve"],
-                                capture_output=True, text=True, timeout=5)
-    except OSError:
-        raise DeskError("cannot start cua-driver: open executable unavailable") from None
-    except subprocess.TimeoutExpired:
-        raise DeskError("cannot start cua-driver: open timed out") from None
-    if result.returncode:
-        raise DeskError(f"cannot start cua-driver: open exited {result.returncode}")
-    # Keep launch ownership even if the daemon does not become ready in time.
+    # Create state before launching: a state-write failure must leave no daemon.
     fd = os.open(STATE / DRIVER_MARKER,
                  os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w") as handle:
         os.fchmod(handle.fileno(), 0o600)
+    from _lease import driver_pids, ps_table, record_driver
+    try:
+        before = driver_pids()
+    except (OSError, subprocess.TimeoutExpired):
+        raise DeskError("cannot start cua-driver: driver PID snapshot unavailable") from None
+    try:
+        result = subprocess.run(["open", "-g", "-a", str(DRIVER_APP), "--args", "serve"],
+                                capture_output=True, text=True, timeout=DRIVER_START_WAIT)
+    except OSError:
+        raise DeskError("cannot start cua-driver: LaunchServices unavailable") from None
+    except subprocess.TimeoutExpired:
+        raise DeskError("cannot start cua-driver: LaunchServices timed out") from None
+    if result.returncode:
+        raise DeskError(f"cannot start cua-driver: LaunchServices exited {result.returncode}")
     deadline = time.monotonic() + DRIVER_START_WAIT
+    seen = set()
     while True:
         remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise DeskError("cannot start cua-driver: daemon not running within 10 s")
+        ready = False
+        if remaining > 0:
+            try:
+                ready = driver_status(min(2, remaining)) is True
+            except DeskError as error:
+                # A slow probe may consume the deadline; still discover a late daemon.
+                if "timed out" not in str(error):
+                    raise
         try:
-            if driver_status(min(2, remaining)) is True:
-                record_driver_lease(launched)
+            table = ps_table()
+            seen.update(driver_pids(table) - before)
+            if len(seen) > 1:
+                raise ValueError("multiple new driver PIDs appeared; no driver leased or stopped")
+            expired = time.monotonic() >= deadline
+            # Defer the lease until ready or timed out, so ambiguous starts stay unleased.
+            lease = record_driver(before, table) if ready or expired else None
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            raise DeskError(f"cannot record a lease for cua-driver: {error}; drivers left running") from None
+        if lease:
+            if ready:
                 return
-        except DeskError as error:
-            # One slow status probe is not a failed start; keep polling until the deadline.
-            if "timed out" not in str(error):
-                raise
+            raise DeskError("cannot start cua-driver: daemon not running within 10 s; launch remains leased")
+        if expired:
+            raise DeskError("cannot start cua-driver: no new driver PID appeared; no driver leased or stopped")
         time.sleep(min(0.1, max(0, deadline - time.monotonic())))
 
 

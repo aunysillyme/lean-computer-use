@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { chmodSync, writeFileSync } from 'node:fs';
+import { chmodSync, writeFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { doctor, doctorCommand } from '../src/doctor.mjs';
 import { installCommand } from '../src/install.mjs';
-import { temp, write } from './support.mjs';
+import { ROOT, temp, write } from './support.mjs';
 
 async function setup(t) {
   const root = temp(t);
@@ -42,6 +43,32 @@ test('doctor checks package files on other platforms and skips driver commands',
   assert.equal(result.checks.find(check => check.id === 'driver').message, 'skipped: macOS only');
 });
 
+test('doctor bin checks --dir and --share against the custom installation', { skip: process.platform === 'win32' }, async t => {
+  const root = temp(t), dir = join(root, 'host'), share = join(root, 'share');
+  await installCommand(['--dir', dir, '--share', share, '--yes', '--with-hooks'], { write() {} });
+  const fake = '#!/bin/sh\ncase "$1 $2" in\n  "permissions status") echo \'{"accessibility":true,"screen_recording":true}\' ;;\n  "telemetry status") echo disabled ;;\n  *) echo ready ;;\nesac\n';
+  for (const name of ['python3', 'osascript', 'cua-driver']) chmodSync(write(root, `commands/${name}`, fake), 0o755);
+  const env = { ...process.env, HOME: join(root, 'unused-home'), LEAN_COMPUTER_USE_HOME: join(root, 'unused-share'),
+    LEAN_COMPUTER_USE_LEASES: join(root, 'leases'), PATH: `${join(root, 'commands')}:${process.env.PATH}` };
+  const binary = join(ROOT, 'bin/lean-computer-use.mjs');
+  const call = args => spawnSync(process.execPath, [binary, 'doctor', ...args], { env, encoding: 'utf8', timeout: 30000 });
+  const args = ['--dir', dir, '--share', share, '--json'];
+  const result = call(args);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const checks = JSON.parse(result.stdout).checks;
+  assert.equal(checks.find(check => check.id === 'installed-files').status, 'PASS');
+  assert.equal(checks.find(check => check.id === 'hooks').status, 'PASS');
+  rmSync(join(share, 'desk/desk'));
+  const changed = call(args);
+  assert.equal(changed.status, 1, changed.stdout + changed.stderr);
+  assert.equal(JSON.parse(changed.stdout).checks.find(check => check.id === 'installed-files').status, 'FAIL');
+  for (const flag of ['--dir', '--share']) {
+    const missing = call([flag]);
+    assert.equal(missing.status, 2, missing.stdout + missing.stderr);
+    assert.match(missing.stderr, new RegExp(`Missing value for ${flag}`));
+  }
+});
+
 test('doctor fails missing runtime, permissions and changed installed files', async t => {
   const value = await setup(t);
   writeFileSync(join(value.options.dir, 'agents/desk-runner.md'), 'user edited\n');
@@ -71,4 +98,14 @@ test('doctor external commands resolve from injected PATH', { skip: process.plat
   const result = doctor(value.options, { ...value, platform: 'darwin', env: { ...value.env, PATH: `${directory}:${process.env.PATH}` } });
   assert.equal(result.checks.find(check => check.id === 'driver').message, 'fake-ready');
   assert.equal(result.checks.find(check => check.id === 'permissions').status, 'FAIL');
+});
+
+test('doctor reports a pending installation as unknown and needs review', async t => {
+  const value = await setup(t);
+  writeFileSync(join(value.options.share, 'install-manifest.json'), JSON.stringify({ state: 'pending' }));
+  const result = doctor(value.options, { ...value, platform: 'linux', run: goodRun });
+  const check = result.checks.find(check => check.id === 'installed-files');
+  assert.equal(check.status, 'UNKNOWN');
+  assert.match(check.message, /pending and needs review/);
+  assert.equal(result.exitCode, 1);
 });
