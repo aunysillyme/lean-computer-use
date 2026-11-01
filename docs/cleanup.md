@@ -26,8 +26,8 @@ The summary line reads `cleanup: ended=cua-driver:1 left=0`: the processes ended
 
 | Exit | Meaning |
 | --- | --- |
-| 0 | Dry run, or every leased process ended. |
-| 1 | A leased process is still alive, a lease was refused, or the process list could not be read. |
+| 0 | Dry run with valid leases, or every leased process ended. |
+| 1 | A leased process is still alive, a lease was refused, a lease is invalid, or the process list could not be read. |
 | 2 | Usage error. |
 
 ## Start a helper with a lease
@@ -38,6 +38,8 @@ npx lean-computer-use spawn -- <command> [args]
 
 `spawn` starts the command detached, records the lease and returns. A browser or a desktop app executable is refused before it starts, and a process whose lease cannot be written is stopped again. `--session ID` and `--run NAME` label the lease.
 
+`desk` snapshots live driver PIDs, then launches through LaunchServices with `open -g -a /Applications/CuaDriver.app --args serve`. This preserves CuaDriver's macOS permission identity. It polls for readiness and exactly one new driver PID for up to 10 seconds, then leases that PID with its start time and exact command. Rounded start times never decide ownership. A slow start keeps its lease after the readiness timeout. No new PID or multiple new PIDs produces an error with no lease or driver stop. A lease write failure leaves drivers running and reports the error.
+
 ## What it ends
 
 A process is ended when all of these hold:
@@ -46,17 +48,21 @@ A process is ended when all of these hold:
 - The live process has the same id, start time, command line and owner as its lease. A recycled process id fails this check and its stale lease is cleared. The check repeats right before each signal.
 - It passes its signature, judged on the running command line: `cua-driver serve` for the driver, or a helper that is not a browser.
 - It is not an ancestor of the cleanup run itself.
-- For the driver: `cua-driver sessions` reports no live session.
+- For the driver: `cua-driver sessions` explicitly reports `No live sessions` (with an optional final period).
 
 Its children go first. Each process gets SIGTERM, then a 3 second wait, then SIGKILL only if the same process (same id, start time and command line) is still alive.
 
 ## What is left alone
 
 - A driver you started yourself: it has no lease. `desk` starts the daemon on demand, so a driver ended here comes back on the next call.
-- A daemon that two sessions started at the same moment: it is ambiguous, so it is not leased.
+- A daemon outside the exact PID that this call launched.
 - A driver that still reports live sessions: the line shows `busy_driver=1` and the exit code is 1.
+- A driver whose session probe fails, times out, is unavailable or returns empty output: it stays running, with `unknown_driver=N`, an UNKNOWN reason and exit 1.
+- Invalid lease files: they are not trusted, and `invalid_leases` reports their count for review.
 - Apps and browsers found below a leased helper, unless they belong to the helper's own bundle: the line shows `kept_other_apps=N`.
 - Processes with no lease, and processes of other users.
+
+`desk-clean` also requires a matching lease before stopping the driver. It uses the driver's gentle stop command only when exactly one driver is running, the lease still matches and the session probe explicitly reports no live sessions. An idle driver with no lease stays running with `driver=left-running-unleased`. The `driver-started` state marker alone grants no ownership.
 
 ## Trust
 

@@ -49,12 +49,13 @@ export function packMetrics() {
     const result = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts', '--offline', '--cache', cache], { cwd: ROOT, encoding: 'utf8', timeout: 30000, maxBuffer: 4 * 1024 * 1024 });
     if (result.status !== 0) throw Error(`npm pack failed (${result.status}): ${result.stdout}${result.stderr}`);
     const pack = packRecord(result.stdout);
-    if (pack.files.some(file => /^\.repo-build\/|(?:^|\/)private\.local\.txt$|^(?:test|proof)\/|(?:^|\/)tests\//.test(file.path))) throw Error('Package allowlist includes a private or test artifact.');
+    if (pack.files.some(file => /^\.repo-build\/|(?:^|\/)private\.local\.txt$|^test\/|(?:^|\/)tests\//.test(file.path) || file.path.startsWith('proof/') && file.path !== 'proof/results.json')) throw Error('Package allowlist includes a private or test artifact.');
     if (pack.size > 300000 || pack.unpackedSize > 1000000) throw Error('Package byte budget exceeded.');
     return pack;
   } finally { rmSync(cache, { recursive: true, force: true }); }
 }
 export async function main(args = []) {
+  if (!existsSync(join(ROOT, 'test/fixtures/transcripts')) || !existsSync(join(ROOT, 'desk/tests/test_desk.py'))) throw Error('Regenerate proof from a source checkout with its test suites and fixtures.');
   if (args.some(arg => !['--record', '--deterministic', '--node-passes', '--python-passes'].includes(arg) && !/^\d+$|^unverified$/.test(arg))) throw Error('Usage: proof [--deterministic | --record --node-passes N --python-passes N|unverified]');
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   const arg = flag => args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined;
