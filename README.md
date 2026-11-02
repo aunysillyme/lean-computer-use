@@ -1,6 +1,6 @@
 # lean-computer-use
 
-[![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/lean-computer-use)](https://www.npmjs.com/package/lean-computer-use) [![Repository checks](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml/badge.svg)](https://github.com/aunysillyme/lean-computer-use/actions/workflows/check.yml) [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/aunysillyme/lean-computer-use/badge)](https://scorecard.dev/viewer/?uri=github.com/aunysillyme/lean-computer-use)
 
 **Background Mac computer control for AI agents: chain actions, read once with a filter, and verify cleanup.**
 
@@ -115,6 +115,7 @@ npx lean-computer-use install --with-hooks
 This merges marked retry and batching entries into the host's settings while preserving other settings.
 The default installation prints a snippet path and manual merge instructions.
 The retry guard and batch hint support the workflow; the runner enforces the brief's boundaries. Malformed input or an internal error lets the call through.
+The stop gate blocks a turn once while desktop control is still held and names the release tool. Hold control for the user with `npx lean-computer-use keep --reason "<why>"`, or install with `--no-stop-gate` to leave it out. See [the stop gate](docs/cleanup.md#the-stop-gate).
 
 ## Cleanup: nothing keeps running
 
@@ -147,7 +148,7 @@ npx lean-computer-use measure --projects-dir <transcripts-dir> --since YYYY-MM-D
 
 The command scans local Claude Code transcript files, counts each native assistant message id once, and keeps its largest input total.
 It separates main-session and subagent steps and reports median, p90 (the value 90 percent of steps stay under), mean, total and re-read share.
-Use `--tool-pattern <regex>` for a different native MCP tool prefix.
+Use `--tool-pattern <text>` to match literal text in a native MCP tool name.
 
 Fixture data from the bundled synthetic transcripts, showing the output shape:
 
@@ -165,14 +166,15 @@ The calculation is described in [the skill](skills/lean-computer-use/SKILL.md#me
 
 Package receipts include the command, measurement date and expiry in [proof/results.json](proof/results.json).
 They measure the package and synthetic fixture.
-Regenerate them with `npm run proof` after running the checks.
+Regenerate them from a source checkout with `npm run proof` after running the checks.
+The npm package includes the receipts and proof scripts; regeneration uses the source checkout's test suites and fixtures.
 
 <!-- proof:start -->
 | Measurement | Value | Measured | Expires |
 |---|---|---|---|
-| Runtime dependencies | 0 packages | 2026-10-26 | 2027-01-24 |
-| Fixture main median | 200 tokens | 2026-10-26 | 2027-01-24 |
-| Documented desk exits covered | 11 exit codes | 2026-10-25 | 2027-01-23 |
+| Runtime dependencies | 0 packages | 2026-11-02 | 2027-01-31 |
+| Fixture main median | 200 tokens | 2026-11-02 | 2027-01-31 |
+| Documented desk exits covered | 11 exit codes | 2026-11-01 | 2027-01-30 |
 <!-- proof:end -->
 
 ## Common questions
