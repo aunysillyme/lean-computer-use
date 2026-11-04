@@ -64,6 +64,14 @@ The next checker stage will gate the deployment command. Its runtime is UNVERIFI
 Build failures exit with a diagnostic and status 1. Input checks run before existing output is replaced.
 Once output writing starts, a filesystem error can leave a partial output directory; rerun after fixing it.
 
+## Package proof refresh
+
+`.github/workflows/proof.yml` runs each Monday and on manual dispatch. It checks out the default branch, measures deterministic package rows, preserves the test receipt dates, and rebuilds the default landing mock from the new proof. The website checker and proof tests must pass before `scripts/refresh-proof-branch.mjs` writes anything to GitHub.
+
+The script creates one commit containing the proof, README and mock together. Its tree starts from the measured default branch, and its parents retain the prior `automation/refresh-proof` history and the measured default branch. It refuses a moved default branch, unexpected commits or files on the automation branch, and a non-fast-forward update. It opens one review pull request when GitHub permits Actions to do so; otherwise it prints the comparison link. A pull request is not a release, and its maintainer runs the required checks before merging.
+
+Dependencies are the GitHub Actions runner, Node.js, GitHub's API and the workflow token. Reads are the default branch, prior automation history and repository files; writes are generated build files in the runner, a branch commit and, when permitted, a pull request. The workflow log is the failure record and watcher: no separate alert is configured here. To verify by hand, run the workflow on a test repository, inspect the resulting branch and Vercel preview, and check the workflow log. Live workflow behavior after this change is UNVERIFIED until a run completes.
+
 ## Failure modes
 
 | Failure | Next action |
