@@ -1,8 +1,8 @@
 # Desk commands
 
-These Python tools keep native Mac app actions in one small helper context. They resolve a bundle id to a process and usable window, inject those ids, save the full driver response, and return a short result. Python uses only its standard library. Native app control requires macOS, `cua-driver`, `open`, `osascript`, Accessibility permission, and Screen Recording permission.
+These Python tools keep native Mac app actions in one small helper context. They resolve a bundle id to a process and usable window, inject those ids, save the full driver response, and return a short result. Python uses only its standard library. Native app control requires macOS, `CuaDriver.app`, `cua-driver`, `osascript`, Accessibility permission, and Screen Recording permission.
 
-The runner calls `desk`, then a filtered `desk-read`, then `desk-clean`. Each command imports `_resolve.py` beside itself. The driver is checked on demand and started in the background through `/Applications/CuaDriver.app` when needed. The calling runner checks results and reports cleanup; `desk-reap` and the registered hooks end whatever the run leased (see below).
+The runner calls `desk`, then a filtered `desk-read`, then `desk-clean`. Each command imports `_resolve.py` beside itself. The driver is checked on demand and its app-bundle executable is started in the background when needed. Its exact PID is leased before readiness polling. The calling runner checks results and reports cleanup; `desk-reap` and the registered hooks end whatever the run leased (see below).
 
 ## Run and verify
 
@@ -55,7 +55,7 @@ The same command and exit pairs are recorded in [exit-codes.json](exit-codes.jso
 "$DESK/desk-reap" cleanup --apply    # ends it and prints one summary line
 ```
 
-The summary reads `cleanup: ended=cua-driver:1 left=0`. Exit 0 means every leased process ended (or a dry run); exit 1 means one is still alive or a lease was refused; exit 2 is a usage error. Options: `--all` (every session), `--session ID`, `--run NAME`, `--json`.
+The summary reads `cleanup: ended=cua-driver:1 left=0`. Exit 0 means every leased process ended (or a dry run found no invalid leases); exit 1 means a lease is invalid, a process is still alive or a lease was refused; exit 2 is a usage error. Options: `--all` (every session), `--session ID`, `--run NAME`, `--json`.
 
 A process ends only when its lease matches the live process (id, start time, command line, owner), it is not an ancestor of the cleanup run, and it passes its signature: `cua-driver serve` for the driver, or a leased helper that is not a browser and not a desktop app. Children end first. Each process gets SIGTERM, a 3 second wait, then SIGKILL only if the same process is still alive. Apps and browsers below a leased helper, unleased processes (including a driver you started yourself), and a driver that still reports live sessions stay running.
 

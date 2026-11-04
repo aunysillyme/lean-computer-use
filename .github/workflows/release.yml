@@ -24,7 +24,6 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      # Maintainer verifies and replaces this major tag with a full SHA before release automation.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
@@ -38,7 +37,7 @@ jobs:
       - run: node scripts/self-check.mjs
       - name: Test desk tools and native hooks
         run: |
-          python3 -m pip install pytest
+          python3 -m pip install --require-hashes --only-binary :all: --no-deps -r .github/requirements-ci.txt
           python3 -m pytest -q desk/tests hooks/tests
       - name: Check JavaScript types
         run: |
@@ -109,3 +108,32 @@ jobs:
             exit 0
           fi
           npm publish "$1" --provenance --access public
+
+  github-release:
+    name: Create the GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create the release page unless it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to create."
+            exit 0
+          fi
+          name="$(node -p "require('./package.json').name")"
+          version="${TAG#v}"
+          notes="$RUNNER_TEMP/notes.md"
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > "$notes"
+          test -s "$notes" || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+          gh release create "$TAG" --verify-tag --title "$name $version" --notes-file "$notes"

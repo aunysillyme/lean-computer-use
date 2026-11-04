@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [instabox-medium]
         node: [22, 24, 26]
         include:
           - os: macos-latest
@@ -36,7 +36,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
-      # Maintainer verifies and replaces this major tag with a full SHA before release automation.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: runner.os != 'Windows'
         with:
@@ -55,7 +54,7 @@ jobs:
       - name: Test desk tools and native hooks
         if: runner.os != 'Windows'
         run: |
-          python3 -m pip install pytest
+          python3 -m pip install --require-hashes --only-binary :all: --no-deps -r .github/requirements-ci.txt
           python3 -m pytest -q desk/tests hooks/tests
       - name: Check public text and commit messages
         run: node scripts/check-terms.mjs
@@ -64,7 +63,7 @@ jobs:
 
   lint:
     name: Workflow lint
-    runs-on: ubuntu-latest
+    runs-on: instabox-medium
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

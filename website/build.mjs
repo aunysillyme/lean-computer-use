@@ -5,11 +5,13 @@ import { execFileSync } from 'node:child_process';
 import { buildJsonLd, buildFaqJsonLd, validateTools, visibleText } from './facts.mjs';
 import { pages } from './pages.mjs';
 import { content } from './content.mjs';
+import { stripHtml, stripTags } from './html.mjs';
 
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const repository = 'https://github.com/aunysillyme/lean-computer-use';
 import { checkCopyPins } from './check.mjs';
 import { assets, media, fontStylesheet, csp } from './resources.mjs';
+import { renderProjectsPopup } from './projects-popup-render.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const json = (root, file) => JSON.parse(read(root, file));
 const requireValue = (ok, message) => { if (!ok) throw Error(message); };
@@ -98,12 +100,17 @@ function uniqueId(text, ids) {
 // Source HTML is data. Only tags constructed by this renderer reach the page.
 export function renderMarkdown(markdown, { source = 'README.md', ids = new Set(), routes = sourceRoutes() } = {}) {
   const references = new Map();
-  markdown = markdown.replace(/^---\n[^]*?\n---\n/, '').replace(/<!--[^]*?-->/g, '');
+  markdown = markdown.replace(/^---\n[^]*?\n---\n/, '');
+  let previous;
+  do {
+    previous = markdown;
+    markdown = markdown.replace(/<!--[^]*?-->/g, '');
+  } while (markdown !== previous);
   markdown = markdown.replace(/^\[([^\]]+)\]:\s*(\S+).*$/gm, (_, label, href) => { references.set(label.toLowerCase(), href); return ''; });
   function inline(value, tokens = []) {
     const save = html => { tokens.push(html); return `\u0000${tokens.length - 1}\u0000`; };
     value = value.replace(/`([^`]+)`/g, (_, code) => save(`<code>${escape(code)}</code>`));
-    value = value.replace(/<(script|style|iframe|object|svg)\b[^>]*>[^]*?<\/\1\s*>/gi, '').replace(/<\/?[a-z][^>]*>/gi, '');
+    value = stripHtml(value);
     value = value.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, href) => {
       const src = rewriteUrl(href, source, { image: true, routes });
       return save(src ? `<img src="${escape(src)}" alt="${escape(alt)}" loading="lazy">` : '');
@@ -138,9 +145,12 @@ export function renderMarkdown(markdown, { source = 'README.md', ids = new Set()
     }
     // Drop active raw HTML blocks before joining their lines into paragraphs.
     if (/^\s*<(script|style|iframe|object|svg)\b/i.test(line)) {
-      const tag = line.match(/<(\w+)/)[1];
+      const tag = line.match(/<(\w+)/)[1].toLowerCase();
       const raw = [];
-      do { raw.push(lines[index]); if (new RegExp(`</${tag}\\s*>`, 'i').test(lines[index++])) break; } while (index < lines.length);
+      do {
+        raw.push(lines[index++]);
+        if ([...raw.join('\n').matchAll(/<\/(script|style|iframe|object|svg)\b[^>]*>/gi)].some(match => match[1].toLowerCase() === tag)) break;
+      } while (index < lines.length);
       const safe = inline(raw.join('\n'));
       if (safe.trim()) blocks.push(`<p>${safe}</p>`);
       continue;
@@ -222,12 +232,25 @@ function docsBody(root, page, facts) {
   return `<article class="markdown">${chunks.join('\n')}${toolBlocks(page, facts, ids)}</article>`;
 }
 
+// The pinned set is the one source for the Projects popup and every sibling list.
+function setRows(root) {
+  const set = json(root, '.repo-build/set.json');
+  requireValue(set.version === 1 && Array.isArray(set.rows) && set.rows.length > 0, 'Invalid set: .repo-build/set.json needs version 1 and rows');
+  for (const row of set.rows) requireValue(row.name && row.url && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.name), `Invalid set row: ${row.name}`);
+  return set.rows;
+}
+
 function siblings(root) {
-  return [...section(read(root, 'README.md'), 'Part of a set').matchAll(/\[([^\]]+)\]\((https:\/\/github\.com\/aunysillyme\/[^)]+)\)/g)].map(([, name, href]) => ({ name, href }));
+  const current = json(root, 'package.json').name;
+  return setRows(root).filter(row => row.name !== current).map(row => ({ name: row.name, href: row.url }));
+}
+
+function projectsPopup(root) {
+  return renderProjectsPopup({ rows: setRows(root), current: json(root, 'package.json').name, id: 'projects-popup', fallbackHref: 'https://aunysillyme.dev/#projects' });
 }
 
 function flow(facts) {
-  return `<div class="routing card" id="flow">${cardTrace()}<div class="routing-head"><span>A MAC APP TASK</span><span>ILLUSTRATIVE FLOW</span></div><div class="task-tabs" role="group" aria-label="App task process">${facts.process.map(([name, caption], index) => `<button class="card" type="button" data-caption="${escape(caption)}" data-task="${name.toLowerCase()}" aria-pressed="${index === 0}">${cardTrace()}${escape(name)}</button>`).join('')}</div><div class="task" id="task-text" aria-live="polite">${escape(facts.process[0][1])}</div><div class="stem"></div><div class="route-core selected card" data-role="frame">${cardTrace()}MAIN SESSION · FRAME THE TASK</div><div class="split"></div><div class="route-options"><div class="card" data-role="run">${cardTrace()}<b>desk-runner</b>Calculator in the background</div><div class="card" data-role="read">${cardTrace()}<b>Saved read</b>Full evidence in a file</div><div class="card" data-role="verify">${cardTrace()}<b>Main session</b>Check value and cleanup</div></div><p class="route-foot">A fresh desk-runner handles one native Mac app task.<br>Example from the README: enter a value in Calculator.</p></div>`;
+  return `<div class="routing card" id="flow">${cardTrace()}<div class="routing-head"><span>A MAC APP TASK</span><span>ILLUSTRATIVE FLOW</span></div><div class="task-tabs" role="group" aria-label="App task process">${facts.process.map(([name, caption], index) => `<button class="card" type="button" data-caption="${escape(caption)}" data-task="${name.toLowerCase()}" aria-pressed="${index === 0}">${escape(name)}</button>`).join('')}</div><div class="task" id="task-text" aria-live="polite">${escape(facts.process[0][1])}</div><div class="stem"></div><div class="route-core selected card" data-role="frame">MAIN SESSION · FRAME THE TASK</div><div class="split"></div><div class="route-options"><div class="card" data-role="run"><b>desk-runner</b>Calculator in the background</div><div class="card" data-role="read"><b>Saved read</b>Full evidence in a file</div><div class="card" data-role="verify"><b>Main session</b>Check value and cleanup</div></div><p class="route-foot">A fresh desk-runner handles one native Mac app task.<br>Example from the README: enter a value in Calculator.</p></div>`;
 }
 
 function landingBody(root, facts) {
@@ -235,13 +258,13 @@ function landingBody(root, facts) {
   const release = readRelease(root, facts.version);
   const faq = facts.faq.map(row => `<details><summary data-faq-question>${escape(row.question)}</summary><p data-faq-answer>${renderMarkdown(row.answerMarkdown, { source: 'README.md' }).replace(/^<p>|<\/p>$/g, '')}</p></details>`).join('\n');
   return `<div class="crumb"><a href="https://aunysillyme.dev/">Home</a><span>/</span><b>${escape(facts.name)}</b></div>
-<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1>${escape(content.headline)}<br><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroContext)} ${escape(content.headlineSource)}</p><div class="install card">${cardTrace()}<span class="dollar" aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy card" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}" title="${escape(content.install.copy)}">${cardTrace()}⧉</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary card" href="#quickstart">${cardTrace()}Get started ↓</a><a class="card" href="${repository}">${cardTrace()}Explore the source ↗</a></div></div>${flow(facts)}</section>
+<section class="hero" id="overview"><div><p class="eyebrow">${escape(content.eyebrow)}</p><h1>${escape(content.headline)}<br><em>${escape(content.headlineAccent)}</em></h1><p class="lede">${escape(content.heroContext)} ${escape(content.headlineSource)}</p><div class="install card">${cardTrace()}<span class="dollar" aria-hidden="true">$</span><code id="install-command">${escape(content.install.command)}</code><button class="copy card" type="button" data-copy="install-command" aria-label="${escape(content.install.copy)}" title="${escape(content.install.copy)}">⧉</button></div><p id="copy-status" role="status" class="sr-only" data-success="${escape(content.install.copySuccess)}" data-fallback="${escape(content.install.copyFallback)}"></p><div class="hero-actions"><a class="primary card" href="#quickstart">Get started ↓</a><a class="card" href="${repository}">Explore the source ↗</a></div></div>${flow(facts)}</section>
 <div class="trust">${content.chips.map(chip => `<span>${escape(chip)}</span>`).join('')}</div>
-${heading(content.sections.trailer, 'trailer', `<video autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="/assets/trailer-poster.jpg" aria-label="Lean-computer-use trailer" aria-describedby="trailer-note"><source src="/assets/trailer.webm" type="video/webm"><source src="/assets/trailer.mp4" type="video/mp4">Your browser does not support embedded video. <a href="/assets/trailer.mp4">Watch the trailer ↗</a></video><div class="trailer-caption"><p class="note" id="trailer-note">A quick look at lean-computer-use. Silent video.</p><button type="button" class="trailer-toggle" aria-pressed="false" aria-label="Play trailer">Play trailer</button></div>`, 'APP ACTIONS & EVIDENCE', 'trailer')}
+${heading(content.sections.trailer, 'trailer', `<video autoplay muted loop playsinline preload="auto" width="1280" height="720" poster="/assets/trailer-poster.jpg" aria-label="Lean-computer-use trailer" aria-describedby="trailer-note"><source src="/assets/trailer.webm" type="video/webm"><source src="/assets/trailer.mp4" type="video/mp4">Your browser does not support embedded video. <a href="/assets/trailer.mp4">Watch the trailer ↗</a></video><div class="trailer-caption"><p class="note" id="trailer-note">A quick look at lean-computer-use. Silent video.</p><button type="button" class="trailer-toggle" aria-pressed="false" aria-label="Play trailer"><svg class="icon-pause" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><rect x="2" y="1.5" width="3" height="9"/><rect x="7" y="1.5" width="3" height="9"/></svg><svg class="icon-play" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3 1.5v9l7.5-4.5z"/></svg><span class="sr-only" data-button-label>Play trailer</span></button></div>`, 'APP ACTIONS & EVIDENCE', 'trailer')}
 ${heading(content.columnsTitle, 'how-it-works', `<div class="three">${content.columns.map((column, index) => `<article class="card">${cardTrace()}<div class="feature-num">${String(index + 1).padStart(2, '0')} / ${escape(column.label)}</div><h3>${escape(column.title)}</h3><p>${escape(column.text)}</p><a href="${escape(column.href)}">${escape(column.link)} ↗</a></article>`).join('')}</div>`, content.sectionLabels.how)}
 ${heading(content.install.title, 'quickstart', `<div class="docs-grid"><div>${content.install.steps.map((step, index) => `<div class="step"><b>${String(index + 1).padStart(2, '0')}</b><div>${escape(step.title)}<p>${escape(step.text)}</p></div></div>`).join('')}</div><div><div class="code card">${cardTrace()}<pre><code>${escape(content.install.commands.join('\n\n'))}</code></pre></div><p class="note">${escape(content.install.note)}<br><a href="/docs/install/">${escape(content.install.guide)} ↗</a></p></div></div>`, content.sectionLabels.install)}
 ${heading(content.deeper.title, 'reference', `<div class="docs-links">${content.deeper.cards.map(card => `<a class="doc-link card" href="${escape(card.href)}">${cardTrace()}${escape(card.title)} ↗<span>${escape(card.text)}</span></a>`).join('')}</div>`, content.sectionLabels.deeper)}
-${heading(content.sections.evidence, 'proof', `${proofTable(facts)}<div class="docs-grid"><p class="note">${escape(content.proof.intro)} ${escape(content.proof.note)}</p><div class="hero-actions"><a class="primary card" href="/docs/proof/">${cardTrace()}${escape(content.proof.details)} ↗</a><a class="card" href="/docs/guarantees/">${cardTrace()}${escape(content.proof.guarantees)} ↗</a></div></div>`, content.sectionLabels.evidence)}
+${heading(content.sections.evidence, 'proof', `${proofTable(facts)}<div class="docs-grid"><p class="note">${escape(content.proof.intro)} ${escape(content.proof.note)}</p><div class="hero-actions"><a class="primary card" href="/docs/proof/">${escape(content.proof.details)} ↗</a><a class="card" href="/docs/guarantees/">${escape(content.proof.guarantees)} ↗</a></div></div>`, content.sectionLabels.evidence)}
 ${heading(content.sections.fresh, 'releases', `<div class="release"><strong>v${escape(release.version)}<small>${release.verified ? '' : escape(content.release.pending)}</small></strong><div class="release-copy"><p>${escape(content.release.text)}</p><a href="/docs/changelog/">${escape(content.release.changelog)} ↗</a></div></div>`, content.sectionLabels.fresh)}
 ${heading(content.sections.requirements, 'requirements', `<div class="requirements">${content.requirements.map(item => `<article class="card">${cardTrace()}<h3>${escape(item.title)}</h3><p>${escape(item.text)}</p></article>`).join('')}</div>`)}
 ${heading(content.sections.questions, 'questions', `<div class="faq">${faq}</div>`)}
@@ -278,6 +301,7 @@ function head(page, facts, live, notFound = false) {
   return `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="is-agentic-site-type" content="app">
 <meta http-equiv="Content-Security-Policy" content="${escape(csp)}">
 <title>${escape(page.title)}</title>
 <meta name="description" content="${escape(page.description)}">
@@ -301,7 +325,11 @@ ${!live || notFound ? '<meta name="robots" content="noindex">' : `<link rel="des
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="${escape(fontStylesheet)}" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/projects-popup.css">
 <script src="/assets/site.js" defer></script>
+<script src="/assets/projects-popup.js" defer></script>
+<script src="/assets/speed-insights.js" defer></script>
+<script src="/_vercel/speed-insights/script.js" defer></script>
 <script type="module" src="/assets/navigation.js"></script>
 <script type="module" src="/assets/trailer.js"></script>
 ${blocks.map(block => `<script type="application/ld+json">${JSON.stringify(block, null, 2).replace(/</g, '\\u003c')}</script>`).join('\n')}`;
@@ -319,7 +347,7 @@ function documentBody(page, body) {
 
 function template(root, page, body, facts, live, commit, notFound = false) {
   const file = page.route === '/' && !notFound ? 'landing.template.html' : 'doc.template.html';
-  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="${page.route === '/' ? 'https://aunysillyme.dev/' : '/'}"><img src="/assets/avatar.png" alt="AunySillyMe"><span>${page.route === '/' ? 'AunySillyMe.dev' : escape(content.brand)}</span>${page.route === '/' ? `<span class="slash">/</span><b>${escape(content.brand)}</b>` : ''}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}">${page.route === '/' ? `<span class="pill"><i class="dot"></i><span>v${escape(facts.version)}</span></span>` : '<a href="/">Home</a>'}<a href="${repository}">GitHub ↗</a>${page.route === '/' ? `<a href="${facts.npm}">npm ↗</a>` : ''}</nav></header>`;
+  const header = `<a class="skip" href="#main">${escape(content.skip)}</a><header class="top"><a class="brand" href="${page.route === '/' ? 'https://aunysillyme.dev/' : '/'}"><img src="/assets/avatar.png" alt="AunySillyMe"><span>${page.route === '/' ? 'AunySillyMe.dev' : escape(content.brand)}</span>${page.route === '/' ? `<span class="slash">/</span><b>${escape(content.brand)}</b>` : ''}</a><nav class="topnav" aria-label="${escape(content.projectLinks)}">${page.route === '/' ? `<span class="pill"><i class="dot"></i><span>v${escape(facts.version)}</span></span>` : '<a href="/">Home</a>'}${projectsPopup(root)}<a href="${repository}">GitHub ↗</a><a href="${facts.npm}">npm ↗</a></nav></header>`;
   const mobileNav = `<details class="mobile-nav"><summary>${page.route === '/' ? content.onThisPage : 'Documentation'}</summary><nav aria-label="Mobile documentation">${navLinks(page)}</nav></details>`;
   const values = { head: head(page, facts, live, notFound), header, sidebar: sidebar(root, page), mobileNav, body, footer: footer(commit), pageClass: file.startsWith('doc') ? 'document' : 'landing' };
   return read(root, `website/${file}`).replace(/\{\{(\w+)\}\}/g, (_, key) => {
@@ -348,13 +376,17 @@ function validateRendered(documents, facts) {
 
 function markdownTwin(html, page) {
   let body = html.match(/<main\b[^>]*>([^]*?)<\/main>/)?.[1] || '';
-  body = body.replace(/<details class="mobile-nav">[^]*?<\/details>/g, '').replace(/<footer\b[^>]*>[^]*?<\/footer>/g, '').replace(/<nav\b[^>]*>[^]*?<\/nav>/g, '');
+  let previous;
+  do {
+    previous = body;
+    body = body.replace(/<details class="mobile-nav">[^]*?<\/details\b[^>]*>/gi, '').replace(/<footer\b[^>]*>[^]*?<\/footer\b[^>]*>/gi, '').replace(/<nav\b[^>]*>[^]*?<\/nav\b[^>]*>/gi, '');
+  } while (body !== previous);
   body = body.replace(/<h([1-6])\b[^>]*>([^]*?)<\/h\1>/g, (_, depth, text) => `\n\n${'#'.repeat(Number(depth))} ${visibleText(text)}\n\n`)
     .replace(/<a href="([^"]+)"[^>]*>([^]*?)<\/a>/g, (_, href, text) => `[${visibleText(text)}](${href.startsWith('/') ? origin : ''}${href.replace(/&amp;/g, '&')})`)
     .replace(/<pre><code>([^]*?)<\/code><\/pre>/g, (_, code) => `\n\n\`\`\`\n${decode(code)}\n\`\`\`\n\n`)
     .replace(/<code>([^]*?)<\/code>/g, (_, code) => `\`${decode(code)}\``)
-    .replace(/<\/(?:p|div|section|article|details|tr|li|figure|summary)>/g, '\n\n').replace(/<\/(?:th|td)>/g, ' | ')
-    .replace(/<[^>]+>/g, '');
+    .replace(/<\/(?:p|div|section|article|details|tr|li|figure|summary)>/g, '\n\n').replace(/<\/(?:th|td)>/g, ' | ');
+  body = stripTags(body);
   return `Canonical: ${origin}${page.route}\n\n${decode(body).replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 

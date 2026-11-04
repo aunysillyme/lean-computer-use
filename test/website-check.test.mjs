@@ -86,6 +86,14 @@ for (const field of ['short sha', 'commit URL']) {
   });
 }
 
+test('site typography uses the selected mono family', () => {
+  const css = read(root, 'website/assets/site.css');
+  const resources = read(root, 'website/resources.mjs');
+  assert.match(resources, /https:\/\/fonts\.googleapis\.com\/css2\?family=JetBrains\+Mono:wght@400;500;600&display=swap/);
+  assert.doesNotMatch(css + resources, new RegExp(['Cormor' + 'ant', 'Geor' + 'gia', '--' + 'serif'].join('|')));
+  assert.match(css, /\.hero h1 em\{display:block;font-size:\.6em;line-height:1\.3;letter-spacing:-\.01em;margin-top:\.5em;font-weight:400;font-style:normal;color:var\(--green\)\}/);
+});
+
 test('website test sources contain no revision lookup tokens', () => {
   const forbidden = new RegExp(['rev' + '-parse', 'HE' + 'AD'].join('|'));
   const tests = readdirSync(join(root, 'test')).filter(file => /^website-.*\.test\.mjs$/.test(file));
@@ -142,6 +150,15 @@ red('100 x 100 PNG', dir => {
 }, /expected a 1200 x 630 PNG/, { live: true });
 red('sitemap with ten URLs', dir => edit(dir, 'sitemap.xml', xml => xml.replace('</urlset>', '<url><loc>https://lean-computer-use.aunysillyme.dev/extra/</loc></url></urlset>')), /sitemap must list exactly/, { live: true });
 red('external script tag', dir => append(dir, doc, '<script src="https://example.org/test.js"></script>'), /external resource: script/);
+red('missing is-agentic-site-type meta tag', dir => edit(dir, doc, html => html.replace('<meta name="is-agentic-site-type" content="app">', '')), /expected one is-agentic-site-type meta tag with content app/);
+red('wrong is-agentic-site-type', dir => edit(dir, doc, html => html.replace('name="is-agentic-site-type" content="app"', 'name="is-agentic-site-type" content="docs"')), /expected one is-agentic-site-type meta tag with content app/, { live: true });
+red('duplicate is-agentic-site-type meta tag', dir => edit(dir, doc, html => html.replace('</head>', '<meta name="is-agentic-site-type" content="app"></head>')), /expected one is-agentic-site-type meta tag with content app/);
+red('unknown Vercel script path', dir => append(dir, doc, '<script src="/_vercel/other.js"></script>'), /unresolved file/);
+red('Speed Insights path on an image', dir => append(dir, doc, '<img src="/_vercel/speed-insights/script.js" alt="Test">'), /unresolved file/);
+red('missing Speed Insights script', dir => edit(dir, doc, html => html.replace('<script src="/_vercel/speed-insights/script.js" defer></script>', '')), /expected one Speed Insights queue and script/);
+red('duplicate Speed Insights script', dir => append(dir, doc, '<script src="/_vercel/speed-insights/script.js" defer></script>'), /expected one Speed Insights queue and script/);
+red('async Speed Insights script', dir => edit(dir, doc, html => html.replace('src="/_vercel/speed-insights/script.js" defer', 'src="/_vercel/speed-insights/script.js" async')), /Speed Insights must defer and load after its queue/);
+red('Speed Insights script before queue', dir => edit(dir, doc, html => html.replace('<script src="/assets/speed-insights.js" defer></script>\n<script src="/_vercel/speed-insights/script.js" defer></script>', '<script src="/_vercel/speed-insights/script.js" defer></script>\n<script src="/assets/speed-insights.js" defer></script>')), /Speed Insights must defer and load after its queue/);
 red('gtag snippet', dir => append(dir, doc, '<script>gtag("config", "test");</script>'), /analytics or tag-manager/);
 red('external image', dir => append(dir, doc, '<img src="https://example.org/test.png" alt="Test">'), /external resource: img/);
 red('external stylesheet', dir => append(dir, doc, '<link rel="stylesheet" href="https://example.org/test.css">'), /external resource: link/);
@@ -178,7 +195,6 @@ red('private issue id', dir => append(dir, doc, `<p>AU${'N'}-123</p>`), /private
 red('personal path', dir => append(dir, doc, `<p>/Us${'ers'}/sample/file</p>`), /personal path/);
 red('vault path', dir => append(dir, doc, '<p>Vaults/notes/file</p>'), /vault path/);
 red('default index differs from saved mock', dir => append(dir, 'index.html', '<p>Extra copy</p>'), /default landing differs/);
-red('unverified release version', dir => edit(dir, 'index.html', html => html.replace('not released yet', 'released')), /Fresh from the repo must say not released yet/);
 red('unexpected output file', dir => write(dir, 'extra.txt', 'Extra'), /unexpected output file/);
 red('missing default noindex', dir => edit(dir, doc, html => html.replace('<meta name="robots" content="noindex">', '')), /missing noindex/);
 red('default discovery alternate', dir => append(dir, doc, '<link rel="alternate" type="text/markdown" href="/index.md">'), /markdown alternate in default mode/);
@@ -202,10 +218,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 14);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 17);
-  assert.equal(expectedFiles().length, 23);
-  assert.equal(expectedFiles(true).length, 35);
+  assert.equal(expectedFiles().length, pages.length + 17);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 20);
+  assert.equal(expectedFiles().length, 26);
+  assert.equal(expectedFiles(true).length, 38);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 
@@ -288,7 +304,7 @@ test('RED every allowed JSON-LD type rejects an invented property', t => {
 });
 
 red('font host cannot supply a script', dir => append(dir, doc, '<script src="https://fonts.googleapis.com/test.js"></script>'), /external resource: script/);
-red('font stylesheet must match the selected families', dir => edit(dir, doc, html => html.replace('family=Cormorant', 'family=Other')), /external resource: link/);
+red('font stylesheet must match the selected families', dir => edit(dir, doc, html => html.replace('family=JetBrains+Mono', 'family=Other')), /external resource: link/);
 red('font preconnect cannot point at another host', dir => append(dir, doc, '<link rel="preconnect" href="https://example.org">'), /external resource: link/);
 red('remote trailer poster is refused', dir => append(dir, doc, '<video poster="https://example.org/poster.jpg"></video>'), /external resource: video/);
 red('media outside the assets directory is refused', dir => append(dir, doc, '<video src="/index.html"></video>'), /media must use local/);

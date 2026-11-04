@@ -202,6 +202,13 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
     check(links('canonical').length === 1 && links('canonical')[0].attrs.href === origin + route, file, 'wrong canonical');
     const policies = tags('meta').filter(node => node.attrs['http-equiv']?.toLowerCase() === 'content-security-policy');
     check(policies.length === 1 && policies[0].attrs.content === csp, file, 'resource CSP differs from policy');
+    const siteTypes = meta('is-agentic-site-type');
+    check(siteTypes.length === 1 && siteTypes[0].attrs.content === 'app', file, 'expected one is-agentic-site-type meta tag with content app');
+    const queue = tags('script').filter(node => node.attrs.src === '/assets/speed-insights.js');
+    const insights = tags('script').filter(node => node.attrs.src === '/_vercel/speed-insights/script.js');
+    check(queue.length === 1 && insights.length === 1, file, 'expected one Speed Insights queue and script');
+    check([...queue, ...insights].every(node => own(node.attrs, 'defer') && !own(node.attrs, 'async'))
+      && queue[0]?.offset < insights[0]?.offset, file, 'Speed Insights must defer and load after its queue');
     const ids = nodes.filter(node => own(node.attrs, 'id')).map(node => node.attrs.id);
     check(new Set(ids).size === ids.length, file, 'duplicate id');
     const sidebar = tags('aside').filter(node => (node.attrs.class || '').split(/\s+/).includes('sidebar'));
@@ -247,7 +254,10 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
         for (const value of values) {
           let url;
           try { url = new URL(value, origin + route); } catch { fail(file, `invalid URL: ${value}`); continue; }
-          if (url.origin === origin) resolveLink(file, value, { anchor: node.name !== 'link' });
+          if (url.origin === origin) {
+            const speedInsights = node.name === 'script' && attr === 'src' && value === '/_vercel/speed-insights/script.js';
+            if (!speedInsights) resolveLink(file, value, { anchor: node.name !== 'link' });
+          }
           else {
             const rel = (node.attrs.rel || '').split(/\s+/);
             const permitted = fontLink(node) && attr === 'href' || attr === 'href' && (node.name === 'a' || node.name === 'link' && rel.some(value => ['canonical', 'describedby', 'alternate'].includes(value)));

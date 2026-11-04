@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { renderMarkdown } from '../website/build.mjs';
+import { stripHtml } from '../website/html.mjs';
+import { runInNewContext } from 'node:vm';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
@@ -14,7 +16,7 @@ const routes = ['/', '/docs/overview/', '/docs/how-it-works/', '/docs/guides/', 
 // Placeholder commit used to generate the saved mock, independent of repository history.
 const testCommit = '0000000000000000000000000000000000000000';
 const read = (dir, file) => readFileSync(join(dir, file), 'utf8');
-const text = html => html.replace(/<(script|style)\b[^]*?<\/\1>/gi, '').replace(/<[^>]*>/g, ' ')
+const text = html => stripHtml(html, ' ')
   .replace(/&(?:amp|lt|gt|quot|#39);/g, value => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[value])
   .replace(/\s+/g, ' ').trim();
 const pageFile = route => route === '/' ? 'index.html' : route.slice(1) + 'index.html';
@@ -36,11 +38,13 @@ function files(dir, prefix = '') {
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'website-build-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs'];
+  const inputs = ['package.json', 'README.md', 'REPO_SETTINGS.md', 'CHANGELOG.md', 'LICENSE', 'scripts/privacy.mjs', '.repo-build/set.json'];
   inputs.push(...JSON.parse(read(root, 'website/tools.json')).flatMap(tool => tool.source));
   for (const folder of ['docs', 'skills', 'desk', 'hooks', 'agents', 'briefs', 'proof', 'website']) {
+    // Desk and hook tests create and remove .desk-test-*, .hook-test-* and .gate-test-* folders while suites run in parallel.
     inputs.push(...files(join(root, folder)).filter(file => !file.split('/').some(part =>
-      ['node_modules', 'dist', '__pycache__'].includes(part))).map(file => `${folder}/${file}`));
+      ['node_modules', 'dist', '__pycache__', '.pytest_cache'].includes(part) || /^\.(desk|hook|gate)-test-/.test(part)))
+      .map(file => `${folder}/${file}`));
   }
   for (const file of new Set(inputs)) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
@@ -80,16 +84,33 @@ function traced(html, pattern, count) {
 
 test('landing cards and action buttons start with a decorative border ray', t => {
   const html = read(built(fixture(t)), 'index.html');
-  for (const [name, count] of [['routing', 1], ['doc-link', 4], ['install', 1], ['copy', 1], ['code', 1], ['proof-card', 1], ['route-core', 1]]) {
+  for (const [name, count] of [['routing', 1], ['doc-link', 4], ['install', 1], ['code', 1], ['proof-card', 1]]) {
     traced(html, new RegExp(`<[^/!][^>]*class="(?:[^"]* )?${name}(?: [^"]*)?"[^>]*>`, 'g'), count);
   }
   traced(html, /<article\b[^>]*>/g, 8);
-  traced(html, /<button\b[^>]*data-task="[^"]+"[^>]*>/g, 4);
+  const small = [
+    ...html.matchAll(/<button\b[^>]*data-task="[^"]+"[^>]*>/g),
+    ...html.matchAll(/<[^>]*class="[^"]*\b(?:copy|route-core|trailer-toggle)\b[^"]*"[^>]*>/g),
+    ...html.matchAll(/<div class="card" data-role="[a-z]+">/g),
+  ];
+  assert.equal(small.length, 11, 'inner controls and nodes found');
+  for (const match of small) assert.ok(!html.startsWith(cardTrace, match.index + match[0].length), `${match[0]} carries no ray`);
   const actions = [...html.matchAll(/<div class="hero-actions">([^]*?)<\/div>/g)];
   assert.equal(actions.length, 2);
-  for (const action of actions) traced(action[1], /<a\b[^>]*>/g, 2);
+  for (const action of actions) assert.doesNotMatch(action[1], /card-trace/);
+  const toggle = html.match(/<button[^>]*trailer-toggle[^]*?<\/button>/)[0];
+  assert.ok(toggle.includes('icon-pause') && toggle.includes('icon-play') && toggle.includes('data-button-label'), 'small icon pause button with hidden label');
   assert.doesNotMatch(html.match(/<aside\b[^]*?<\/aside>/)[0], /card-trace/);
-  assert.doesNotMatch(html.match(/<header\b[^]*?<\/header>/)[0], /card-trace/);
+  // The Projects popup carries its own rays; the rest of the header stays plain.
+  const header = html.match(/<header\b[^]*?<\/header>/)[0];
+  assert.doesNotMatch(header.replace(/<div class="projects-popup"[\s\S]*?<\/ul><\/div><\/div>/, ''), /card-trace/);
+  const links = header.match(/<a class="projects-popup__link"[\s\S]*?<\/a>/g) || [];
+  assert.equal(links.length, 6);
+  for (const link of links) {
+    assert.match(link, /class="card-trace"/);
+    assert.match(link, /https:\/\/[a-z-]+\.aunysillyme\.dev/);
+  }
+  assert.match(header, /data-projects-trigger/);
 });
 
 test('docs tool and proof cards have rays while prose code blocks keep their markup', t => {
@@ -258,12 +279,27 @@ test('RED source sanitization removes executable script and inline event handler
   write(dir, 'docs/METHOD.md', read(dir, 'docs/METHOD.md') + '\n\n' + payload + '\n');
   const html = read(built(dir), 'docs/how-it-works/index.html');
   const check = value => {
-    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script>/gi)) assert.ok(!script[1].includes('sourcePayload'));
+    for (const script of value.matchAll(/<script\b[^>]*>([^]*?)<\/script\b[^>]*>/gi)) assert.ok(!script[1].includes('sourcePayload'));
     assert.doesNotMatch(value, /<[^>]+\son[a-z]+\s*=/i);
     assert.ok(text(value).includes('Safe source text'));
   };
   assert.throws(() => check(html + payload));
   check(html);
+});
+
+test('source sanitization strips nested tags and active closing variants', () => {
+  for (const payload of ['<scr<script>ipt>alert(1)</script>', '<script>alert(1)</SCRIPT >', '<script>alert(1)</script\t\nbar>']) {
+    assert.equal(stripHtml(payload), '', payload);
+    const html = renderMarkdown(`Before ${payload} after`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i, payload);
+    assert.ok(text(html).includes('Before'));
+    assert.ok(text(html).includes('after'));
+  }
+  for (const closing of ['</SCRIPT >', '</script\t\nbar>']) {
+    const html = renderMarkdown(`<script>\nalert(1)\n${closing}\n\nAfter`);
+    assert.doesNotMatch(html, /alert\(1\)|script/i);
+    assert.match(html, /After/);
+  }
 });
 
 test('RED hero has approved headline and visible keywords, with the prohibited headline absent', t => {
@@ -281,15 +317,17 @@ test('RED hero has approved headline and visible keywords, with the prohibited h
 
 test('RED unverified release stays pending and a verified local release shows its version', t => {
   const dir = fixture(t);
-  const pending = value => assert.match(text(value), /v0\.1\.0 not released yet/);
+  rmSync(join(dir, 'website/release.json'), { force: true });
+  const version = JSON.parse(read(dir, 'package.json')).version;
+  const pending = value => assert.ok(text(value).includes(`v${version} not released yet`));
   const initial = read(built(dir), 'index.html');
   assert.throws(() => pending(initial.replace('not released yet', 'released')));
   pending(initial);
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: false }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: false }));
   pending(read(built(dir, { out: 'unverified' }), 'index.html'));
-  write(dir, 'website/release.json', JSON.stringify({ version: '0.1.0', verified: true }));
+  write(dir, 'website/release.json', JSON.stringify({ version, verified: true }));
   const verified = text(read(built(dir, { out: 'verified' }), 'index.html'));
-  assert.ok(verified.includes('0.1.0'));
+  assert.ok(verified.includes(`v${version}`));
   assert.ok(!verified.includes('not released yet'));
 });
 
@@ -326,6 +364,47 @@ test('RED build imports keep the zero dependency boundary', () => {
   check(code);
 });
 
+test('Projects header and sibling links follow the pinned set on every page', t => {
+  const dir = fixture(t);
+  const set = JSON.parse(read(dir, '.repo-build/set.json'));
+  set.rows.push({ name: 'example-project', url: 'https://github.com/aunysillyme/example-project', line: 'Example: description' });
+  write(dir, '.repo-build/set.json', JSON.stringify(set));
+  const output = built(dir);
+  for (const [route, html] of htmlPages(output)) {
+    const header = html.match(/<header\b[^]*?<\/header>/)[0];
+    assert.match(header, /data-projects-trigger href="https:\/\/aunysillyme\.dev\/#projects"/);
+    assert.match(header, /href="https:\/\/lean-computer-use\.aunysillyme\.dev" aria-current="page"/);
+    assert.match(header, /href="https:\/\/example-project\.aunysillyme\.dev"/);
+    assert.match(header, /GitHub ↗/);
+    assert.match(header, /npm ↗/);
+    assert.ok(html.includes('https://github.com/aunysillyme/example-project'), route);
+    assert.equal((html.match(/src="\/assets\/projects-popup\.js" defer/g) || []).length, 1);
+  }
+});
+
+test('Speed Insights loads once after its queue and is-agentic-site-type is app on every page in both modes', t => {
+  const dir = fixture(t);
+  for (const live of [false, true]) {
+    const output = built(dir, { live });
+    for (const file of files(output).filter(file => file.endsWith('.html'))) {
+      const html = read(output, file);
+      assert.equal(html.split('<meta name="is-agentic-site-type" content="app">').length - 1, 1, file);
+      assert.equal(html.split('<script src="/_vercel/speed-insights/script.js" defer></script>').length - 1, 1, file);
+      assert.match(html, /<script src="\/assets\/speed-insights.js" defer><\/script>\n<script src="\/_vercel\/speed-insights\/script.js" defer><\/script>/);
+      assert.match(html, /connect-src &#39;self&#39;/);
+      assert.doesNotMatch(html, /unsafe-inline/);
+    }
+    const window = {};
+    const script = read(output, 'assets/speed-insights.js');
+    runInNewContext(script, { window });
+    window.si('beforeSend', 'queued');
+    assert.deepEqual(Array.from(window.siq[0]), ['beforeSend', 'queued']);
+    const handler = window.si;
+    runInNewContext(script, { window });
+    assert.equal(window.si, handler);
+  }
+});
+
 test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets are complete', t => {
   const dir = fixture(t);
   const output = built(dir);
@@ -346,7 +425,7 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
       assert.equal(blocks[0].itemListElement.length, 3);
       for (const item of blocks[0].itemListElement) assert.ok(visible.includes(item.name), item.name);
     }
-    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/'), match[1]);
+    for (const match of html.matchAll(/<(?:script|img)\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(match[1].startsWith('/assets/') || match[0].startsWith('<script') && match[1] === '/_vercel/speed-insights/script.js', match[1]);
     assert.match(html, /href="\/assets\/site.css"/);
     assert.match(html, /src="\/assets\/site.js"/);
     assert.doesNotMatch(html, /<(?:iframe|audio)\b|googletagmanager|google-analytics/i);

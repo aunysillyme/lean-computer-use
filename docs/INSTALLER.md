@@ -7,6 +7,8 @@
 | `npx lean-computer-use` | Preview an install and ask for confirmation. |
 | `npx lean-computer-use install --yes` | Apply the previewed install without a prompt. |
 | `npx lean-computer-use install --with-hooks` | Also merge marked native hook registrations. |
+| `npx lean-computer-use install --with-hooks --no-stop-gate` | Merge the hooks without the touch and stop gate entries. |
+| `npx lean-computer-use keep --reason <text>` | Hold the session's desktop control for the user; see [the stop gate](cleanup.md#the-stop-gate). |
 | `npx lean-computer-use install --dir <path> --share <path>` | Use explicit host and share roots. |
 | `npx lean-computer-use uninstall` | Remove unchanged files recorded in the manifest. |
 | `npx lean-computer-use --uninstall` | Alias for `uninstall`. |
@@ -26,6 +28,15 @@ It copies packaged `briefs/desk-brief.md` to `<claude dir>/skills/lean-computer-
 It replaces `__DESK_DIR__` in the runner with the installed desk directory.
 Desk scripts are executable.
 It records paths, file hashes and created directories in `<share>/install-manifest.json`.
+Before changing backups or payloads, it writes a pending manifest and updates ownership before each file write.
+The pending manifest records each staging path before creating it.
+File and manifest replacements are atomic, so a failed write keeps the prior file intact.
+An interrupted install remains pending: run `uninstall` with the same `--dir` and `--share` roots, then install again.
+Recovery removes matching installed files, restores recorded originals and keeps user edits and earlier backups for review.
+An upgrade records the previous installed hash until completion, so recovery also recognizes files it had yet to replace.
+Recovery removes complete or partial staged bytes only when they match the recorded package payload or original backup source.
+A changed staging source keeps the temporary file, reports its exact path for review and lets recovery continue.
+Changed staging contents with a matching source keep the pending manifest for review.
 
 The installer previews before mutation and asks `y/N` unless `--yes` is supplied.
 A non-interactive install requires `--yes`.
@@ -35,7 +46,7 @@ The installer never installs third-party tools, runs vendor logins, or changes g
 
 ## Hook merge
 
-`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently, including the cleanup entries for SubagentStop, Stop and SessionEnd (see [cleanup](cleanup.md)).
+`--with-hooks` backs up `settings.json`, preserves all other keys and registrations, and adds marked entries idempotently, including the cleanup entries for SubagentStop, Stop and SessionEnd and the stop gate entries (see [cleanup](cleanup.md)). The manifest records whether the stop gate was chosen, and `doctor` expects that set.
 MCP native tools and Bash have separate matchers.
 The Bash handler checks that the first word of a command segment is `desk`, `desk-read` or `desk-clean` before it applies native behavior.
 Uninstall removes only entries carrying this install's marker.
@@ -59,4 +70,5 @@ Do not delete a shared skill directory or an entire settings file as a substitut
 
 `test/installer.test.mjs` exercises temporary roots, dry runs, replacement backup, settings merge, edited-file preservation and install/uninstall restoration.
 `npx lean-computer-use doctor --json` compares installed files with the package and reports optional hook registration.
+For a custom installation, pass the same `--dir` and `--share` values to `doctor`.
 All tests use temporary paths and fake commands.

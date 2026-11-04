@@ -33,6 +33,7 @@ Set `DESK=__DESK_DIR__`; the installer replaces this token with the quoted insta
 
 Preserve the full saved read at the brief's handoff path before clearing run state.
 End only sessions and tasks this run created.
+End the desktop control this run took: call `release_full_control` or `app_release` (computer-use) or `end_session` (cua-driver) for control it holds. Apps the user already had open stay open. Hold control the user must act on with `npx --yes lean-computer-use keep --reason "<why>"` and name it in the report. Otherwise the stop gate blocks once to request the release.
 Call `"$DESK/desk-clean" <bundle> --app-name <Name>`.
 Add `--launched-by-run` only if the initial snapshot was false and this run launched the app.
 This requests a gentle quit for that app and cleans owned state; never force-kill.

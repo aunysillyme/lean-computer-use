@@ -46,8 +46,24 @@ class Lab:
         self.env.pop("CLAUDE_SESSION_ID", None)
         self.pids = set()
 
-    def reap(self, *args, env=None, timeout=30):
-        return subprocess.run([sys.executable, str(REAP), *args], capture_output=True, text=True,
+    def reap(self, *args, env=None, timeout=30, trace=False):
+        command = [sys.executable, str(REAP), *args]
+        if trace:
+            # Trace only the child rows that spawn actually judges.
+            command = [sys.executable, "-c", """
+import json, runpy, sys
+sys.path.insert(0, sys.argv[1])
+import _lease
+original = _lease.ps_one
+def observed(pid):
+    row = original(pid)
+    print('spawn ps: ' + json.dumps(row), file=sys.stderr, flush=True)
+    return row
+_lease.ps_one = observed
+sys.argv = sys.argv[2:]
+runpy.run_path(sys.argv[0], run_name='__main__')
+""", str(DESK), str(REAP), *args]
+        return subprocess.run(command, capture_output=True, text=True,
                               env=dict(self.env, **(env or {})), timeout=timeout)
 
     def spawn(self, exe="helper", code=SLEEP, extra=(), session="S1"):
@@ -96,7 +112,12 @@ def test_spawn_writes_a_private_lease_and_cleanup_ends_the_driver(lab):
     assert lab.leases.stat().st_mode & 0o777 == 0o700
     lease = json.loads((lab.leases / name).read_text())
     assert (lease["pid"], lease["kind"], lease["session"]) == (pid, "driver", "S1")
-    result = lab.reap("cleanup", "--apply", "--all")
+    probe = lab.dir / "probe"
+    probe.mkdir()
+    sessions = probe / "cua-driver"
+    sessions.write_text("#!/bin/sh\necho 'No live sessions.'\n")
+    sessions.chmod(0o755)
+    result = lab.reap("cleanup", "--apply", "--all", env={"PATH": f"{probe}:{os.environ['PATH']}"})
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout.strip() == "cleanup: ended=cua-driver:1 left=0"
     assert not alive(pid)
@@ -259,18 +280,53 @@ def test_a_driver_with_live_sessions_is_left_running(lab):
 
 def test_desk_leases_only_a_daemon_that_started_after_its_own_launch(lab, monkeypatch):
     old = lab.start("cua-driver", extra=["serve"])
-    time.sleep(1.2)
+    assert _lease.settled_row(old) is not None
+    before = _lease.driver_pids()
     marker = time.time()
     new = lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "S9")
     # Only the daemon that began with this launch is leased; an older one is not ours.
-    _lease.record_driver(marker)
+    # Capture startup evidence before selection so Linux failures show clock precision,
+    # process identity and /proc start ticks rather than only an empty lease list.
+    evidence = _lease.driver_diagnostics(marker, new)
+    began = time.monotonic()
+    try:
+        _lease.record_driver(before)
+    except Exception as error:
+        evidence["after"] = _lease.driver_diagnostics(marker, new)
+        evidence["poll_seconds"] = time.monotonic() - began
+        pytest.fail(f"{error}: {json.dumps(evidence, indent=2)}")
+    evidence["poll_seconds"] = time.monotonic() - began
     leases = _lease.read_leases(lab.leases)[0]
-    assert [l["pid"] for l in leases] == [new] and leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
+    assert [l["pid"] for l in leases] == [new], json.dumps(evidence, indent=2)
+    assert leases[0]["session"] == "S9" and leases[0]["kind"] == "driver"
     assert alive(old)
-    _lease.record_driver(marker)
+    _lease.record_driver(before)
     assert len(_lease.read_leases(lab.leases)[0]) == 1
+
+
+@pytest.mark.parametrize("reported_age", [0.0, 1.9, 10.0])
+def test_driver_lease_uses_owned_pid_despite_rounded_start_time(tmp_path, monkeypatch, reported_age):
+    start = "Sat Oct 31 12:00:00 2026"
+    rows = {pid: {"pid": pid, "ppid": 1, "uid": _lease.UID, "stat": "S", "start": start,
+                  "command": "cua-driver serve"} for pid in (6788, 6789)}
+    directory = tmp_path / "leases"
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(directory))
+    monkeypatch.setattr(_lease, "ps_table", lambda: rows)
+    reads = []
+
+    def settled(pid):
+        reads.append(pid)
+        return rows[pid]
+
+    monkeypatch.setattr(_lease, "settled_row", settled)
+    launched = time.mktime(time.strptime(start, "%a %b %d %H:%M:%S %Y")) + reported_age
+    monkeypatch.setattr(_lease.time, "time", lambda: launched)
+    # Both daemons can report the same second. Only the new PID belongs to this launch.
+    lease = _lease.record_driver({6788})
+    assert lease["pid"] == 6789 and reads == []
+    assert [entry["pid"] for entry in _lease.read_leases(directory)[0]] == [6789]
 
 
 def test_invalid_and_unsafe_lease_files_are_ignored(lab):
@@ -280,21 +336,95 @@ def test_invalid_and_unsafe_lease_files_are_ignored(lab):
     (lab.leases / "ffffffffffffffff.json").write_text(json.dumps({"v": 1, "id": "ffffffffffffffff", "pid": pid, "kind": "helper"}))
     (lab.leases / "notes.txt").write_text("x")
     result = lab.reap("cleanup", "--apply", "--all")
-    assert result.returncode == 0 and alive(pid)
+    assert result.returncode == 1 and "invalid_leases=2" in result.stdout and alive(pid)
     link = lab.dir / "link"
     link.symlink_to(lab.leases, target_is_directory=True)
     assert "ended=none" in lab.reap("cleanup", "--apply", "--all", env={"LEAN_COMPUTER_USE_LEASES": str(link)}).stdout
 
 
-def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab):
+def test_unknown_driver_session_state_does_not_end_driver(lab):
+    fake = lab.dir / "path"
+    fake.mkdir()
+    sessions = fake / "cua-driver"
+    sessions.write_text("#!/bin/sh\nexit 1\n")
+    sessions.chmod(0o755)
+    pid = lab.spawn("cua-driver", SLEEP, ["serve"])
+    result = lab.reap("cleanup", "--apply", "--all", env={"PATH": f"{fake}:{os.environ['PATH']}"})
+    assert result.returncode == 1 and "unknown_driver=1" in result.stdout and alive(pid)
+    assert "UNKNOWN" in result.stderr and "exited 1" in result.stderr
+
+
+@pytest.mark.parametrize("delay", [0, 0.3])
+def test_spawn_judges_the_running_command_and_stops_a_wrapper_that_becomes_a_browser(lab, delay):
     script = lab.dir / "wrap.sh"
-    script.write_text(f"#!/bin/sh\nexec {str(lab.bin / 'Google Chrome')!r} -e 'setTimeout(()=>{{}},120000)' -- --headless\n")
+    pause = f"sleep {delay}\n" if delay else ""
+    script.write_text(f"#!/bin/sh\n{pause}exec {str(lab.bin / 'Google Chrome')!r} -e 'setTimeout(()=>{{}},120000)' -- --headless\n")
     script.chmod(0o755)
-    result = lab.reap("spawn", "--", str(script))
-    assert result.returncode == 2 and "Refused" in result.stderr
+    result = lab.reap("spawn", "--", str(script), trace=True)
+    evidence = result.stdout + result.stderr
+    # A premature successful lease must still be cleaned up on assertion failure.
+    for lease in _lease.read_leases(lab.leases)[0]:
+        lab.pids.add(lease["pid"])
+    assert result.returncode == 2 and "Refused" in result.stderr, evidence
     time.sleep(0.5)
     assert not [r for r in _lease.ps_table().values() if "Google Chrome" in r["command"] and str(lab.bin) in r["command"] and not r["stat"].startswith("Z")]
     assert lab.lease_files() == []
+
+
+def test_spawn_leases_a_plain_helper_that_never_changes(lab):
+    pid = lab.spawn()
+    [lease] = _lease.read_leases(lab.leases)[0]
+    assert lease["pid"] == pid and lease["kind"] == "helper" and alive(pid)
+
+
+@pytest.mark.parametrize("becomes_browser", [False, True])
+def test_spawn_observes_startup_before_leasing(tmp_path, monkeypatch, becomes_browser):
+    clock = [0.0]
+    observations, stopped = [], []
+    helper = {"pid": 6789, "ppid": 1, "uid": _lease.UID, "stat": "S",
+              "start": "Sat Oct 31 12:00:00 2026", "command": "/bin/sh /tmp/wrap.sh" if becomes_browser else "/tmp/helper"}
+    browser = {**helper, "command": "/tmp/Google Chrome --headless"}
+
+    def observed(pid):
+        row = browser if becomes_browser and clock[0] >= 0.3 else helper
+        observations.append(dict(row))
+        return row
+
+    def sleep(seconds):
+        clock[0] += seconds
+
+    class Child:
+        pid = helper["pid"]
+
+    monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(tmp_path / "leases"))
+    monkeypatch.setattr(_lease.subprocess, "Popen", lambda *a, **kw: Child())
+    monkeypatch.setattr(_lease, "ps_one", observed)
+    monkeypatch.setattr(_lease.time, "sleep", sleep)
+    monkeypatch.setattr(_lease, "kill_group", lambda child: stopped.append(child.pid))
+    if becomes_browser:
+        with pytest.raises(ValueError, match="Refused"):
+            _lease.spawn(["/tmp/wrap.sh"])
+        assert stopped == [helper["pid"]]
+        assert _lease.read_leases()[0] == []
+        assert observations[0] == helper and observations[-1] == browser
+    else:
+        lease = _lease.spawn(["/tmp/helper"])
+        assert lease["kind"] == "helper" and lease["command"] == helper["command"]
+        assert stopped == []
+
+
+def test_settled_row_refuses_a_command_that_keeps_changing(monkeypatch):
+    reads = []
+
+    def observed(pid):
+        reads.append(pid)
+        return {"stat": "S", "start": "Sat Oct 31 12:00:00 2026", "command": f"helper {len(reads)}"}
+
+    monkeypatch.setattr(_lease, "ps_one", observed)
+    monkeypatch.setattr(_lease.time, "sleep", lambda seconds: None)
+    with pytest.raises(ValueError, match="Refused.*did not settle"):
+        _lease.settled_row(6789)
+    assert reads == [6789] * 10
 
 
 def test_a_lease_file_other_users_could_read_is_not_trusted(lab):
@@ -309,11 +439,12 @@ def test_a_lease_file_other_users_could_read_is_not_trusted(lab):
 
 
 def test_two_new_daemons_are_ambiguous_and_neither_is_leased(lab, monkeypatch):
-    marker = time.time()
+    before = _lease.driver_pids()
     lab.start("cua-driver", extra=["serve"])
     lab.start("cua-driver", extra=["serve"])
     monkeypatch.setenv("LEAN_COMPUTER_USE_LEASES", str(lab.leases))
-    assert _lease.record_driver(marker) is None
+    with pytest.raises(ValueError, match="multiple new driver PIDs"):
+        _lease.record_driver(before)
     assert _lease.read_leases(lab.leases)[0] == []
 
 

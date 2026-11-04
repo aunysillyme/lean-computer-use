@@ -32,6 +32,7 @@ Use keys and typing before element clicks, keep actions in the background, test 
 Use one case-insensitive substring per filtered read. Choose a shared substring such as `AXStaticText` for several fields; use two reads when two fields share none.
 Each read prints matching lines and saves the full read to the printed file for inspection of any other line. See [filtered reads](methods/filtered-reads.md).
 Copy the saved full read to the granted handoff location before cleanup removes run state.
+End the control the run took with `release_full_control`, `app_release` or `end_session`; see [cleanup with proof](methods/cleanup-with-proof.md).
 The main session opens that evidence and checks the done signal.
 
 ## Choose a method
@@ -64,7 +65,7 @@ The retry guard and batch hint support the workflow; the runner enforces the bri
 ## Measure your transcripts
 
 Run `npx lean-computer-use measure --json` on your own local transcripts.
-Use `--projects-dir <dir>`, `--since YYYY-MM-DD` or `--tool-pattern <regex>` to narrow the scan.
+Use `--projects-dir <dir>`, `--since YYYY-MM-DD` or `--tool-pattern <text>` to narrow the scan. Tool filters match literal text.
 The command counts each assistant message id once, keeps its largest recorded input total, and separates main-session from subagent steps.
 The report includes p90 (the value 90 percent of steps stay under).
 Compare the same task class and time range before drawing a cost conclusion.
