@@ -174,7 +174,7 @@ The npm package includes the receipts and proof scripts; regeneration uses the s
 |---|---|---|---|
 | Runtime dependencies | 0 packages | 2026-11-10 | 2027-02-08 |
 | Fixture main median | 200 tokens | 2026-11-10 | 2027-02-08 |
-| Documented desk exits covered | 11 exit codes | 2026-11-01 | 2027-01-30 |
+| Documented desk exits covered | 11 exit codes | 2026-11-10 | 2027-02-08 |
 <!-- proof:end -->
 
 ## Common questions
