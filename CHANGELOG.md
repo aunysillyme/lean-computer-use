@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-10
+
+### Security
+
+- Check project links by parsed host and path.
+- Record current repository security and release tag protections.
+
 ## [0.1.4] - 2026-11-01
 
 0.1.3 was tagged but not published to npm; 0.1.4 carries its changes.
