@@ -72,7 +72,7 @@ jobs:
           name: release-package
           path: ${{ runner.temp }}/release/*.tgz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   publish:
     name: Publish the verified tarball
