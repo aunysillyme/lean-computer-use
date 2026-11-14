@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Release builds are kept for 7 days instead of 1, so a publish approval given later than a day still finds the package.
+
 ## [0.1.5] - 2026-11-10
 
 ### Security
