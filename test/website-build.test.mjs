@@ -21,6 +21,12 @@ const text = html => stripHtml(html, ' ')
   .replace(/\s+/g, ' ').trim();
 const pageFile = route => route === '/' ? 'index.html' : route.slice(1) + 'index.html';
 const markdownFile = route => pageFile(route).replace(/\.html$/, '.md');
+const hasProjectLink = html => [...html.matchAll(/\bhref="([^"]+)"/g)].some(match => {
+  try {
+    const url = new URL(match[1]);
+    return url.protocol === 'https:' && url.host === 'github.com' && url.pathname === '/aunysillyme/example-project';
+  } catch { return false; }
+});
 
 function write(dir, file, value) {
   mkdirSync(dirname(join(dir, file)), { recursive: true });
@@ -365,6 +371,9 @@ test('RED build imports keep the zero dependency boundary', () => {
 });
 
 test('Projects header and sibling links follow the pinned set on every page', t => {
+  assert.equal(hasProjectLink('<a href="https://github.com/aunysillyme/example-project.evil">link</a>'), false);
+  assert.equal(hasProjectLink('<a href="https://github.com.evil/aunysillyme/example-project">link</a>'), false);
+  assert.equal(hasProjectLink('<a href="https://github.com/aunysillyme/example-project">link</a>'), true);
   const dir = fixture(t);
   const set = JSON.parse(read(dir, '.repo-build/set.json'));
   set.rows.push({ name: 'example-project', url: 'https://github.com/aunysillyme/example-project', line: 'Example: description' });
@@ -377,7 +386,7 @@ test('Projects header and sibling links follow the pinned set on every page', t 
     assert.match(header, /href="https:\/\/example-project\.aunysillyme\.dev"/);
     assert.match(header, /GitHub ↗/);
     assert.match(header, /npm ↗/);
-    assert.ok(html.includes('https://github.com/aunysillyme/example-project'), route);
+    assert.ok(hasProjectLink(html), route);
     assert.equal((html.match(/src="\/assets\/projects-popup\.js" defer/g) || []).length, 1);
   }
 });

@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   measure:
-    runs-on: instabox-medium
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
