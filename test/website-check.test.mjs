@@ -218,10 +218,10 @@ test('RED private hash match uses only a temporary hash file, then accepts remov
 });
 
 test('exact mode inventory derives from pages and accepts both builder outputs', () => {
-  assert.equal(expectedFiles().length, pages.length + 17);
-  assert.equal(expectedFiles(true).length, pages.length * 2 + 20);
-  assert.equal(expectedFiles().length, 26);
-  assert.equal(expectedFiles(true).length, 38);
+  assert.equal(expectedFiles().length, pages.length + 18);
+  assert.equal(expectedFiles(true).length, pages.length * 2 + 23);
+  assert.equal(expectedFiles().length, 27);
+  assert.equal(expectedFiles(true).length, 41);
   for (const live of [false, true]) assert.deepEqual(run(sources[live ? 'live' : 'default'], { live }), []);
 });
 
@@ -283,7 +283,7 @@ test('RED every allowed JSON-LD type rejects an invented property', t => {
   const dir = fixture(t);
   const original = read(dir, 'index.html');
   const breadcrumb = read(dir, doc);
-  for (const type of ['SoftwareApplication', 'Offer', 'Person', 'Organization', 'FAQPage', 'Question', 'Answer', 'BreadcrumbList', 'ListItem']) {
+  for (const type of ['SoftwareApplication', 'SoftwareSourceCode', 'Offer', 'Person', 'Organization', 'FAQPage', 'Question', 'Answer', 'BreadcrumbList', 'ListItem']) {
     const file = ['BreadcrumbList', 'ListItem'].includes(type) ? doc : 'index.html';
     const source = file === doc ? breadcrumb : original;
     let planted = false;
