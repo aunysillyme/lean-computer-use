@@ -1,3 +1,4 @@
+export const favicon = 'favicon.ico';
 // Resource policy shared by the builder and checker.
 export const fontStylesheet = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap';
 export const media = ['trailer.mp4', 'trailer.webm', 'trailer-poster.jpg'];

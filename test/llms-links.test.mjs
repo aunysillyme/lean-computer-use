@@ -51,7 +51,7 @@ test('llms links use absolute HTTPS and tag-pinned tracked files with heading la
   const set = JSON.parse(read('.repo-build/set.json'));
   const expected = [...set.rows.filter(row => row.name !== pkg.name).map(row => row.url), pkg.homepage];
   assert.deepEqual(external.sort(), expected.sort());
-  for (const href of external) assert.match(href, /^https:\/\/(?:www\.npmjs\.com\/package\/[a-z0-9-]+|github\.com\/aunysillyme\/[a-z0-9-]+)$/);
+  for (const href of external) assert.match(href, /^https:\/\/(?:www\.npmjs\.com\/package\/[a-z0-9-]+|github\.com\/aunysillyme(?:-dev)?\/[a-z0-9-]+)$/);
   t.diagnostic(`External links (shape only): ${external.join(', ')}`);
   assert.match(text, /^Install: `npx lean-computer-use`$/m);
   assert.ok(text.indexOf('## Docs') < text.indexOf('## Reference'));

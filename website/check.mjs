@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { isIP } from 'node:net';
 import { content } from './content.mjs';
 import { pages } from './pages.mjs';
-import { loadFacts, buildJsonLd, buildFaqJsonLd, visibleText, validateKeywords,
+import { loadFacts, buildJsonLd, buildSourceCodeJsonLd, buildFaqJsonLd, personSameAs, visibleText, validateKeywords,
   validateToolHeading, commandEvidence, validateCommand } from './facts.mjs';
 import { hashMatches } from '../scripts/privacy.mjs';
 
@@ -13,7 +13,7 @@ const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const origin = 'https://lean-computer-use.aunysillyme.dev';
 const pageFile = route => `${route.slice(1)}index.html`;
 const twinFile = route => `${route.slice(1)}index.md`;
-import { assets, fontLink, csp } from './resources.mjs';
+import { assets, favicon, fontLink, csp } from './resources.mjs';
 const read = (root, file) => readFileSync(join(root, file), 'utf8');
 const decode = text => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, entity => {
   const named = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
@@ -77,16 +77,17 @@ function filesAt(root, prefix = '') {
 }
 
 export function expectedFiles(live = false) {
-  return [...pages.map(page => pageFile(page.route)), '404.html', 'robots.txt', 'build-info.json',
+  return [...pages.map(page => pageFile(page.route)), '404.html', 'robots.txt', 'build-info.json', favicon,
     ...assets.map(asset => `assets/${asset}`),
-    ...(live ? ['sitemap.xml', 'llms.txt', 'llms-full.txt', ...pages.map(page => twinFile(page.route))] : []),
+    ...(live ? ['AGENTS.md', 'agents.md', 'sitemap.xml', 'llms.txt', 'llms-full.txt', ...pages.map(page => twinFile(page.route))] : []),
   ].sort();
 }
 
 const commonProperties = ['@context', '@type', '@id'];
 const properties = Object.fromEntries(Object.entries({
-  SoftwareApplication: ['name', 'description', 'applicationCategory', 'operatingSystem', 'softwareRequirements', 'license', 'isAccessibleForFree', 'offers', 'url', 'author', 'publisher', 'sameAs'],
-  Offer: ['price', 'priceCurrency'], Person: ['name', 'url'], Organization: ['name', 'url'],
+  SoftwareApplication: ['name', 'description', 'applicationCategory', 'operatingSystem', 'softwareRequirements', 'softwareVersion', 'license', 'isAccessibleForFree', 'offers', 'url', 'author', 'publisher', 'sameAs'],
+  SoftwareSourceCode: ['name', 'description', 'url', 'codeRepository', 'programmingLanguage', 'runtimePlatform', 'version', 'license', 'author', 'sameAs'],
+  Offer: ['price', 'priceCurrency'], Person: ['name', 'alternateName', 'url', 'worksFor', 'sameAs'], Organization: ['name', 'legalName', 'url'],
   FAQPage: ['mainEntity'], Question: ['name', 'acceptedAnswer'], Answer: ['text'],
   BreadcrumbList: ['itemListElement'], ListItem: ['position', 'name', 'item'],
 }).map(([type, keys]) => [type, new Set([...commonProperties, ...keys])]));
@@ -133,12 +134,15 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
   const facts = attempt('facts', () => loadFacts(root));
   if (!facts) return failures;
   failures.push(...checkCopyPins({ root }).map(message => `pins: ${message}`));
+  const allowedSameAs = new Set([...projectUrls, ...personSameAs]);
   const jsonUrls = new Set([...projectUrls, ...pages.map(page => origin + page.route)]);
-  const collectUrls = value => {
+  const collectUrls = (value, key = '') => {
+    if (key === 'sameAs') return;
     if (typeof value === 'string' && /^https?:\/\//i.test(value)) jsonUrls.add(value);
-    else if (value && typeof value === 'object') Object.values(value).forEach(collectUrls);
+    else if (Array.isArray(value)) value.forEach(item => collectUrls(item, key));
+    else if (value && typeof value === 'object') Object.entries(value).forEach(([k, v]) => collectUrls(v, k));
   };
-  [buildJsonLd(facts, { live }), buildFaqJsonLd(facts)].forEach(collectUrls);
+  [buildJsonLd(facts, { live }), buildSourceCodeJsonLd(facts, { live }), buildFaqJsonLd(facts)].forEach(item => collectUrls(item));
   const all = attempt('dist', () => filesAt(dist));
   if (!all) return failures;
   const expected = expectedFiles(live);
@@ -171,9 +175,9 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
   };
   function jsonPolicy(file, value, key = '') {
     if (Array.isArray(value)) { value.forEach(item => jsonPolicy(file, item, key)); return; }
-    if (typeof value === 'string' && (['@context', '@id', 'url', 'item', 'license', 'sameAs'].includes(key)
+    if (typeof value === 'string' && (['@context', '@id', 'url', 'item', 'license', 'codeRepository', 'sameAs'].includes(key)
       || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(value))) {
-      check((key === 'sameAs' ? projectUrls : jsonUrls).has(value), file, 'JSON-LD URL outside allowed pages');
+      check((key === 'sameAs' ? allowedSameAs : jsonUrls).has(value), file, 'JSON-LD URL outside allowed pages');
     }
     if (!value || typeof value !== 'object') return;
     const allowed = properties[value['@type']];
@@ -242,7 +246,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
         const allowed = fontLink(node) && attr === 'href'
           || node.name === 'meta' && attr === 'content' && node.attrs['http-equiv']?.toLowerCase() === 'content-security-policy' && value === csp
           || node.name === 'a' && attr === 'href'
-          || node.name === 'link' && attr === 'href' && rels.some(rel => ['canonical', 'describedby', 'alternate'].includes(rel))
+          || node.name === 'link' && attr === 'href' && rels.some(rel => ['canonical', 'describedby', 'alternate', 'sitemap'].includes(rel))
           || node.name === 'meta' && attr === 'content' && /^(?:og:|twitter:)/.test(node.attrs.property || node.attrs.name || '');
         // Local resources also use absolute site URLs.
         const urls = value.match(/(?:https?:)?\/\/[^\s'"<>;)]+/gi) || [];
@@ -260,7 +264,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
           }
           else {
             const rel = (node.attrs.rel || '').split(/\s+/);
-            const permitted = fontLink(node) && attr === 'href' || attr === 'href' && (node.name === 'a' || node.name === 'link' && rel.some(value => ['canonical', 'describedby', 'alternate'].includes(value)));
+            const permitted = fontLink(node) && attr === 'href' || attr === 'href' && (node.name === 'a' || node.name === 'link' && rel.some(value => ['canonical', 'describedby', 'alternate', 'sitemap'].includes(value)));
             check(permitted && ['http:', 'https:'].includes(url.protocol), file, `external resource: ${node.name}[${attr}]`);
           }
           if (node.name === 'a' && attr === 'href') check(safeAnchor(url), file, 'unsafe external anchor');
@@ -301,7 +305,7 @@ export function checkSite({ root = rootDir, dist = join(root, 'website/dist'), l
     blocks.forEach(block => jsonPolicy(file, block));
     if (file === 'index.html') {
       for (const message of checkCopyPins({ root, html })) fail(file, message);
-      check(same(blocks, [buildJsonLd(facts, { live }), buildFaqJsonLd(facts)]), file, 'landing JSON-LD differs from generated facts');
+      check(same(blocks, [buildJsonLd(facts, { live }), buildSourceCodeJsonLd(facts, { live }), buildFaqJsonLd(facts)]), file, 'landing JSON-LD differs from generated facts');
       attempt(file, () => validateKeywords(facts, html));
       const hero = nodes.find(node => node.name === 'section' && (node.attrs.class || '').split(/\s+/).includes('hero'))?.inner || '';
       for (const phrase of ['computer use', 'Mac', 'background', 'native apps', 'Claude Code']) check(text(hero).includes(phrase), file, `hero missing ${phrase}`);

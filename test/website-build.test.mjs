@@ -111,7 +111,7 @@ test('landing cards and action buttons start with a decorative border ray', t =>
   const header = html.match(/<header\b[^]*?<\/header>/)[0];
   assert.doesNotMatch(header.replace(/<div class="projects-popup"[\s\S]*?<\/ul><\/div><\/div>/, ''), /card-trace/);
   const links = header.match(/<a class="projects-popup__link"[\s\S]*?<\/a>/g) || [];
-  assert.equal(links.length, 6);
+  assert.equal(links.length, 8);
   for (const link of links) {
     assert.match(link, /class="card-trace"/);
     assert.match(link, /https:\/\/[a-z-]+\.aunysillyme\.dev/);
@@ -428,7 +428,7 @@ test('metadata, unique anchors, breadcrumbs, proof dates and same origin assets 
     assert.equal(new Set(ids).size, ids.length, route);
     assert.match(html, /aria-current="(?:page|location)"/);
     const blocks = [...html.matchAll(/<script type="application\/ld\+json">([^]*?)<\/script>/g)].map(match => JSON.parse(match[1]));
-    assert.deepEqual(blocks.map(block => block['@type']), route === '/' ? ['SoftwareApplication', 'FAQPage'] : ['BreadcrumbList']);
+    assert.deepEqual(blocks.map(block => block['@type']), route === '/' ? ['SoftwareApplication', 'SoftwareSourceCode', 'FAQPage'] : ['BreadcrumbList']);
     if (route !== '/') {
       const visible = text(html.match(/<nav\b[^>]*aria-label="Breadcrumb"[^>]*>([^]*?)<\/nav>/i)?.[1] || '');
       assert.equal(blocks[0].itemListElement.length, 3);

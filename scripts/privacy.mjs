@@ -54,7 +54,7 @@ export function scanTerms(root, options = {}) {
     for (const allow of plaintext?.allow || []) local = local.split(allow).join('');
     if (plaintext && (plaintext.plain.some(term => local.includes(term.toLowerCase())) || plaintext.regex.some(re => re.test(local)))) findings.push(`${label}: local vocabulary`);
     if (/\/(?:Us[e]rs|ho[m]e)\/[\w.-]+|[A-Za-z]:\\Us[e]rs\\[^\s\\]+/.test(text)) findings.push(`${label}: personal path`);
-    if (/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(text.replace(/https?:\/\/\S+|\bnoreply@(?:anthropic|openai)\.com\b|\b[\w.+-]+@(?:example\.(?:com|org|net)|[^\s@]+\.(?:mjs|md|py|json|yml))\b/gi, ''))) findings.push(`${label}: address`);
+    if (/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(text.replace(/https?:\/\/\S+|\bnoreply@(?:anthropic|openai)\.com\b|^\s*Co-authored-by:\s*Gemini\s*<200291788\+gemini-code-assist@users\.noreply\.github\.com>\s*$|\b[\w.+-]+@(?:example\.(?:com|org|net)|[^\s@]+\.(?:mjs|md|py|json|yml))\b/gim, ''))) findings.push(`${label}: address`);
     if (/\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,}|sk-[A-Za-z0-9]{24,}|AKIA[A-Z0-9]{16})\b/.test(text)) findings.push(`${label}: credential shape`);
     if (/\b(?:\d{1,3}\.){3}\d{1,3}\b/.test(text)) findings.push(`${label}: network address`);
   };

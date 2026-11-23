@@ -31,15 +31,62 @@ function table(text) {
     line.slice(1, -1).split('|').map(cell => cell.trim()));
 }
 
+export const personSameAs = [
+  'https://www.aunysillyme.com/#person',
+  'https://aunysillyme.com/',
+  'https://www.aunysillyme.com/',
+  'https://github.com/aunysillyme',
+  'https://github.com/aunysillyme-dev',
+  'https://www.npmjs.com/~aunysillyme',
+  'https://x.com/AunySillyMe',
+];
+
+export function buildPersonJsonLd({ live = false } = {}) {
+  return {
+    '@type': 'Person',
+    '@id': 'https://aunysillyme.dev/#person',
+    name: 'Auny Hossain',
+    alternateName: ['Auny', 'AunySillyMe'],
+    url: 'https://aunysillyme.dev/',
+    worksFor: {
+      '@type': 'Organization',
+      '@id': 'https://www.aunysillyme.com/#organization',
+      name: 'AunySillyMe',
+      legalName: 'Auny LLC',
+      url: 'https://aunysillyme.com/',
+    },
+    ...(live ? { sameAs: personSameAs } : {}),
+  };
+}
+
+export function buildSourceCodeJsonLd(facts, { live = false } = {}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareSourceCode',
+    '@id': `${site}#source`,
+    name: facts.name,
+    description: facts.description,
+    url: site,
+    codeRepository: facts.repository,
+    programmingLanguage: ['JavaScript', 'Python'],
+    runtimePlatform: 'Node.js',
+    version: facts.version,
+    license: 'https://spdx.org/licenses/MIT.html',
+    author: { '@type': 'Person', '@id': 'https://aunysillyme.dev/#person', name: 'Auny Hossain', url: 'https://aunysillyme.dev/' },
+    ...(live ? { sameAs: [facts.repository, facts.npm] } : {}),
+  };
+}
+
 export function buildJsonLd(facts, { live = false } = {}) {
   return {
     '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': `${site}#software`,
     name: facts.name, description: facts.description, applicationCategory: 'DeveloperApplication',
     operatingSystem: 'macOS', softwareRequirements: 'Python 3, cua-driver, Node.js 22 or later',
+    softwareVersion: facts.version,
     license: 'https://spdx.org/licenses/MIT.html', isAccessibleForFree: true,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, url: site,
-    author: { '@type': 'Person', '@id': 'https://www.aunysillyme.com/#person', name: 'Auny', url: 'https://www.aunysillyme.com/' },
-    publisher: { '@type': 'Organization', '@id': 'https://www.aunysillyme.com/#organization', name: 'AunySillyMe', url: 'https://www.aunysillyme.com/' },
+    author: buildPersonJsonLd({ live }),
+    publisher: { '@type': 'Organization', '@id': 'https://www.aunysillyme.com/#organization', name: 'AunySillyMe', legalName: 'Auny LLC', url: 'https://www.aunysillyme.com/' },
     ...(live ? { sameAs: [facts.repository, facts.npm] } : {}),
   };
 }
@@ -188,7 +235,7 @@ export function validateMock(facts, html) {
     requireFact(JSON.stringify(commands) === JSON.stringify(tool.commands.map(compact)), `Tool commands differ for ${tool.id}`);
   }
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([^]*?)<\/script>/g)].map(match => JSON.parse(match[1]));
-  requireFact(JSON.stringify(blocks) === JSON.stringify([buildJsonLd(facts, { live: false }), buildFaqJsonLd(facts)]), 'JSON-LD blocks differ from generated facts');
+  requireFact(JSON.stringify(blocks) === JSON.stringify([buildJsonLd(facts, { live: false }), buildSourceCodeJsonLd(facts, { live: false }), buildFaqJsonLd(facts)]), 'JSON-LD blocks differ from generated facts');
 }
 
 export function loadFacts(root) {
@@ -203,7 +250,7 @@ export function loadFacts(root) {
   });
   requireFact(faq.length === 6, 'README must contain six FAQ questions');
   const facts = {
-    name: pkg.name, description: pkg.description, keywords: pkg.keywords,
+    name: pkg.name, version: pkg.version, description: pkg.description, keywords: pkg.keywords,
     repository: pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, ''),
     npm: `https://www.npmjs.com/package/${pkg.name}`, url: site,
     lines: readme.split('\n').filter(line => /^(The problem:|What you get:|What you can do:)/.test(line)),
